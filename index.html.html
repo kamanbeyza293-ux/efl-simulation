@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EFL Classroom Simulation</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Lora:ital,wght@0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0D1B3E; --teal:#028C8C; --teal2:#02BBBB; --teallight:#E0F5F5;
+  --white:#FFFFFF; --off:#F7FAFA; --dgray:#1A2535; --mgray:#4A5568;
+  --lgray:#E2EBF0; --xlgray:#F0F5F8;
+  --red:#C92B2B; --amber:#C97010; --green:#097050;
+  --good-bg:#D4F5E8; --good-br:#059669; --good-tx:#064E3B;
+  --warn-bg:#FEF0C2; --warn-br:#D97706; --warn-tx:#7A3510;
+  --bad-bg:#FFE4E4;  --bad-br:#C92B2B;  --bad-tx:#7F1010;
+  --info-bg:#DBE9FF; --info-br:#3B6CF6; --info-tx:#1A2F7A;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Sora',sans-serif;background:#0A1420;color:var(--dgray);min-height:100vh;overflow-x:hidden;}
+
+/* ══ SCREENS ══════════════════════════════════ */
+.screen{display:none;}
+.screen.active{display:flex;flex-direction:column;}
+#s-lobby{min-height:100vh;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 25% 30%,#0D2840 0%,#0A1420 65%);}
+#s-briefing{min-height:100vh;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 70% 20%,#0D2840 0%,#0A1420 70%);}
+#s-game{min-height:100vh;background:var(--off);}
+#s-results{min-height:100vh;background:var(--navy);align-items:center;padding:2.5rem 1.5rem;}
+
+/* ══ LOBBY ════════════════════════════════════ */
+.lobby-inner{max-width:780px;width:100%;padding:2rem 1.5rem;}
+.lobby-tag{font-size:.7rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--teal2);margin-bottom:1rem;}
+.lobby-h{font-family:'Lora',serif;font-size:clamp(2rem,5vw,3.2rem);color:#fff;
+  line-height:1.18;margin-bottom:.8rem;}
+.lobby-p{font-size:.88rem;color:#7A9DB8;line-height:1.78;max-width:460px;margin-bottom:.6rem;}
+.sound-hint{font-size:.74rem;color:var(--teal2);margin-bottom:2rem;opacity:.85;}
+.pack-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.85rem;}
+.pack-card{background:rgba(255,255,255,.04);border:1px solid rgba(2,140,140,.22);
+  border-radius:13px;padding:1.2rem 1.3rem;cursor:pointer;transition:all .22s;position:relative;overflow:hidden;}
+.pack-card:hover{background:rgba(2,140,140,.1);border-color:var(--teal);transform:translateY(-3px);
+  box-shadow:0 8px 26px rgba(2,140,140,.18);}
+.pack-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--teal);transform:scaleX(0);transform-origin:left;transition:transform .25s;}
+.pack-card:hover::before{transform:scaleX(1);}
+.pack-icon{font-size:1.4rem;margin-bottom:.6rem;}
+.pack-name{font-size:.9rem;font-weight:600;color:#fff;margin-bottom:.25rem;}
+.pack-cnt{font-size:.72rem;color:var(--teal2);font-weight:500;margin-bottom:.35rem;}
+.pack-desc{font-size:.75rem;color:#7A9DB8;line-height:1.5;}
+
+/* ══ BRIEFING ═════════════════════════════════ */
+.brief-card{background:rgba(255,255,255,.05);border:1px solid rgba(2,140,140,.25);
+  border-radius:16px;padding:2.2rem 2.4rem;max-width:520px;width:100%;margin:1.5rem;}
+.brief-eyebrow{font-size:.68rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--teal2);margin-bottom:.6rem;}
+.brief-h{font-family:'Lora',serif;font-size:1.7rem;color:#fff;margin-bottom:.5rem;line-height:1.28;}
+.brief-level{display:inline-block;font-size:.72rem;font-weight:600;padding:3px 10px;
+  border-radius:20px;background:rgba(2,140,140,.18);color:var(--teal2);
+  border:1px solid rgba(2,140,140,.3);margin-bottom:1.1rem;}
+.brief-divider{height:1px;background:rgba(255,255,255,.08);margin:1.1rem 0;}
+.brief-label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--mgray);color:rgba(255,255,255,.35);margin-bottom:.35rem;}
+.brief-theme-text{font-size:.92rem;color:rgba(255,255,255,.75);line-height:1.65;font-family:'Lora',serif;}
+.brief-tip{font-size:.78rem;color:rgba(255,255,255,.4);line-height:1.6;margin-top:.85rem;
+  padding:.6rem .85rem;border-left:2px solid rgba(2,140,140,.4);font-style:italic;}
+.enter-btn{
+  width:100%;margin-top:1.4rem;padding:.8rem;
+  background:var(--teal);color:#fff;border:none;border-radius:10px;
+  font-family:'Sora',sans-serif;font-size:.95rem;font-weight:600;
+  cursor:pointer;transition:all .2s;letter-spacing:.03em;
+}
+.enter-btn:hover{background:var(--teal2);transform:translateY(-1px);box-shadow:0 6px 20px rgba(2,140,140,.35);}
+
+/* ══ GAME TOP BAR ════════════════════════════ */
+.top-bar{background:var(--navy);padding:.55rem 1.4rem;
+  display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;
+  position:sticky;top:0;z-index:100;border-bottom:1px solid rgba(2,140,140,.2);}
+.tbadge{font-size:.65rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  padding:2px 9px;border-radius:20px;background:rgba(2,140,140,.16);color:var(--teal2);
+  border:1px solid rgba(2,140,140,.28);}
+.prog-wrap{display:flex;gap:5px;margin-left:auto;align-items:center;}
+.pdot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.14);
+  border:1px solid rgba(255,255,255,.18);transition:all .3s;}
+.pdot.done{background:var(--teal);border-color:var(--teal);}
+.pdot.cur{background:#fff;border-color:#fff;}
+
+/* ══ PERSPECTIVE CLASSROOM ═══════════════════ */
+.classroom-wrap{
+  background:linear-gradient(180deg,#1A2C3E 0%,#243548 40%,#2E4058 100%);
+  padding:1rem 1.4rem 0;
+  position:relative;overflow:hidden;
+}
+
+/* Ceiling light strip */
+.ceiling-light{
+  position:absolute;top:0;left:50%;transform:translateX(-50%);
+  width:60%;height:4px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),rgba(255,255,255,.22),rgba(255,255,255,.15),transparent);
+  filter:blur(2px);
+}
+
+/* Blackboard */
+.board-area{
+  background:linear-gradient(180deg,#1B3A28 0%,#1E4030 100%);
+  border:3px solid #8B6914;
+  border-radius:4px;
+  margin:0 auto 1rem;
+  width:75%;
+  padding:.6rem 1.2rem;
+  position:relative;
+  box-shadow:0 4px 18px rgba(0,0,0,.5);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.board-area::before{content:'';position:absolute;inset:4px;
+  border:1px solid rgba(255,255,255,.08);border-radius:2px;pointer-events:none;}
+.chalk-text{font-family:'Lora',serif;font-size:.82rem;color:rgba(255,255,255,.82);
+  font-style:italic;letter-spacing:.02em;}
+.board-timer{display:flex;align-items:center;gap:.5rem;}
+.tcircle{width:44px;height:44px;position:relative;flex-shrink:0;}
+.tcircle svg{transform:rotate(-90deg);}
+.t-bg{fill:none;stroke:rgba(255,255,255,.12);stroke-width:4;}
+.t-fg{fill:none;stroke-width:4;stroke-linecap:round;transition:stroke-dashoffset .95s linear,stroke .3s;}
+.tnum{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:.82rem;font-weight:700;color:#fff;transition:color .3s;}
+.tnum.urgent{color:#FF6B6B;}
+.timer-lbl{font-size:.65rem;color:rgba(255,255,255,.5);font-weight:500;}
+
+/* Perspective room */
+.room-perspective{
+  perspective:600px;
+  perspective-origin:50% 0%;
+  margin:0 auto;
+  max-width:680px;
+  position:relative;
+}
+.room-floor{
+  transform:rotateX(32deg);
+  transform-origin:top center;
+  padding:.5rem .5rem 1rem;
+  position:relative;
+}
+
+/* Row of desks in 3D space */
+.desk-rows{display:flex;flex-direction:column;gap:.4rem;}
+.desk-row{display:flex;justify-content:center;gap:.5rem;}
+/* Each row gets progressively smaller to simulate depth */
+.desk-row:nth-child(1){transform:scale(.78);opacity:.72;}
+.desk-row:nth-child(2){transform:scale(.87);opacity:.82;}
+.desk-row:nth-child(3){transform:scale(.94);opacity:.9;}
+.desk-row:nth-child(4){transform:scale(1);}
+
+/* Student desk unit */
+.s-unit{
+  display:flex;flex-direction:column;align-items:center;
+  width:62px;
+  transition:transform .5s;
+}
+.s-unit:hover{transform:translateY(-3px);}
+
+/* Student SVG figure */
+.s-fig{width:38px;height:44px;margin-bottom:2px;}
+
+/* Desk surface */
+.s-desk{
+  width:54px;height:22px;
+  border-radius:3px 3px 2px 2px;
+  border-top:2px solid rgba(255,255,255,.15);
+  position:relative;
+}
+.s-desk.engaged  {background:#3B6B45;}
+.s-desk.distracted{background:#7A5A1A;}
+.s-desk.disruptive{background:#7A2020;}
+.s-desk.phone    {background:#6B2060;}
+.s-desk.passive  {background:#3A4A58;}
+
+/* Desk leg lines */
+.s-desk::after{
+  content:'';position:absolute;bottom:-6px;left:8px;right:8px;
+  height:6px;
+  border-left:2px solid rgba(0,0,0,.3);
+  border-right:2px solid rgba(0,0,0,.3);
+}
+
+/* Status dot on desk */
+.s-desk-dot{
+  position:absolute;top:4px;right:5px;
+  width:6px;height:6px;border-radius:50%;
+}
+.engaged .s-desk-dot  {background:#6EE7A0;}
+.distracted .s-desk-dot{background:#FBD06A;}
+.disruptive .s-desk-dot{background:#FF8080;}
+.phone .s-desk-dot    {background:#F472B6;}
+.passive .s-desk-dot  {background:#94A3B8;}
+
+/* Bars row */
+.bars-row{
+  display:flex;gap:1rem;padding:.6rem 1.4rem;
+  background:#1E2D3E;border-top:1px solid rgba(255,255,255,.06);
+}
+.bar-item{flex:1;display:flex;flex-direction:column;gap:3px;}
+.bar-hd{display:flex;justify-content:space-between;align-items:center;}
+.bar-lbl{font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.45);}
+.bar-val{font-size:.65rem;font-weight:700;}
+.bar-track{height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width .7s ease,background .5s;}
+
+/* Legend */
+.cr-legend{display:flex;gap:10px;flex-wrap:wrap;padding:.5rem 1.4rem .7rem;
+  background:#1A2635;border-top:1px solid rgba(255,255,255,.05);}
+.leg-it{display:flex;align-items:center;gap:4px;font-size:.65rem;color:rgba(255,255,255,.4);}
+.leg-dot{width:7px;height:7px;border-radius:2px;}
+
+/* Alert */
+.alert-bar{padding:.52rem 1.4rem;font-size:.8rem;font-weight:600;
+  display:none;align-items:center;gap:.5rem;border-bottom:2px solid;}
+.alert-bar.on{display:flex;animation:aSlide .28s ease;}
+@keyframes aSlide{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
+.alert-bar.noise {background:#FEF3C7;color:#92400E;border-color:#F59E0B;}
+.alert-bar.crisis{background:#FFE4E4;color:#991B1B;border-color:#C92B2B;}
+.alert-bar.good  {background:#D4F5E8;color:#065F46;border-color:#059669;}
+.alert-bar.freeze{background:#FFE4E4;color:#991B1B;border-color:#C92B2B;}
+
+/* ══ SCENARIO AREA ═══════════════════════════ */
+.sc-area{padding:1.1rem 1.4rem 0;}
+.sc-eyebrow{font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.09em;
+  color:var(--teal);margin-bottom:.4rem;}
+.situation{
+  background:#fff;border:1.5px solid var(--lgray);border-left:4px solid var(--teal);
+  border-radius:10px;padding:.9rem 1.1rem;
+  font-family:'Lora',serif;font-size:.95rem;line-height:1.82;color:var(--dgray);
+  margin-bottom:1rem;
+}
+.opts-lbl{font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--mgray);margin-bottom:.55rem;display:flex;align-items:center;gap:.5rem;}
+.t-inline{color:var(--red);font-weight:700;}
+.opts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:.65rem;margin-bottom:1rem;}
+.opt{
+  background:#fff;border:1.5px solid #C8D8E4;border-radius:10px;
+  padding:.78rem .95rem;cursor:pointer;text-align:left;
+  font-family:'Sora',sans-serif;font-size:.84rem;line-height:1.65;color:var(--dgray);
+  transition:all .18s;display:flex;gap:.58rem;align-items:flex-start;
+}
+.opt:hover:not(:disabled){border-color:var(--teal);background:var(--teallight);
+  transform:translateY(-1px);box-shadow:0 3px 12px rgba(2,140,140,.12);}
+.opt:disabled{opacity:.42;cursor:default;transform:none;}
+.okey{width:24px;height:24px;background:var(--teal);color:#fff;border-radius:5px;
+  font-size:.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;margin-top:1px;}
+
+/* ══ FEEDBACK ════════════════════════════════ */
+#fb-panel{display:none;padding:0 1.4rem 1.6rem;}
+.fb-box{border-radius:10px;padding:.9rem 1.1rem;margin-bottom:.75rem;
+  border:1.5px solid;font-size:.87rem;line-height:1.74;}
+.fb-box.good{background:var(--good-bg);border-color:var(--good-br);color:var(--good-tx);}
+.fb-box.warn{background:var(--warn-bg);border-color:var(--warn-br);color:var(--warn-tx);}
+.fb-box.bad {background:var(--bad-bg); border-color:var(--bad-br); color:var(--bad-tx);}
+.fb-box.info{background:var(--info-bg);border-color:var(--info-br);color:var(--info-tx);}
+.fb-title{font-weight:700;font-size:.88rem;margin-bottom:4px;}
+
+/* Cause → Effect */
+.ce-box{background:#FFF4E8;border:1.5px solid #FBBF70;border-radius:10px;
+  padding:.8rem 1rem;margin-bottom:.75rem;}
+.ce-lbl{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+  color:#B45309;margin-bottom:.5rem;}
+.ce-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:.5rem;}
+.ce-cell{background:#fff;border:1px solid #FCD09A;border-radius:7px;
+  padding:.48rem .7rem;font-size:.78rem;line-height:1.5;color:var(--dgray);}
+.ce-arr{color:#F97316;font-weight:700;font-size:1.1rem;}
+
+.branch-box{background:#FFF7EC;border:1.5px solid #FED7AA;border-radius:10px;
+  padding:.78rem 1rem;margin-bottom:.7rem;
+  font-family:'Lora',serif;font-size:.88rem;line-height:1.7;color:#7C2D12;}
+.branch-lbl{font-family:'Sora',sans-serif;font-size:.62rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.08em;color:#D97706;margin-bottom:.38rem;}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;margin-bottom:.75rem;}
+.theory-strip{background:var(--teallight);border-left:3px solid var(--teal);
+  border-radius:0 8px 8px 0;padding:.68rem .95rem;font-size:.8rem;line-height:1.65;color:var(--dgray);}
+.reflect-strip{background:#FFFBEB;border-left:3px solid #F59E0B;
+  border-radius:0 8px 8px 0;padding:.68rem .95rem;font-size:.8rem;line-height:1.65;
+  color:#78350F;font-style:italic;}
+.sl{font-style:normal;font-size:.62rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;margin-bottom:3px;display:block;}
+.sl.teal{color:var(--teal);}
+.sl.amber{color:#D97706;}
+
+textarea{width:100%;border:1.5px solid var(--lgray);border-radius:8px;
+  padding:.68rem .95rem;font-family:'Sora',sans-serif;font-size:.84rem;
+  line-height:1.6;color:var(--dgray);resize:none;min-height:68px;
+  margin-bottom:.7rem;background:#fff;transition:border-color .2s;}
+textarea:focus{outline:none;border-color:var(--teal);}
+.next-btn{display:inline-flex;align-items:center;gap:5px;padding:.58rem 1.3rem;
+  background:var(--navy);color:#fff;border:none;border-radius:8px;
+  font-family:'Sora',sans-serif;font-size:.87rem;font-weight:600;
+  cursor:pointer;transition:all .18s;}
+.next-btn:hover{background:var(--teal);transform:translateX(2px);}
+
+/* ══ RESULTS ════════════════════════════════ */
+.res-inner{max-width:600px;width:100%;}
+.res-h{font-family:'Lora',serif;font-size:1.9rem;color:#fff;margin-bottom:.4rem;}
+.res-p{font-size:.86rem;color:#8BA0B8;line-height:1.75;margin-bottom:1.5rem;max-width:480px;}
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1.5rem;}
+.scard{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  border-radius:11px;padding:.9rem 1rem;}
+.sval{font-size:1.8rem;font-weight:700;color:var(--teal2);margin-bottom:2px;}
+.slbl{font-size:.7rem;color:#8BA0B8;line-height:1.4;}
+.ref-hd{font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.09em;
+  color:var(--teal2);margin-bottom:.5rem;}
+.ref-item{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  border-radius:8px;padding:.65rem .9rem;font-size:.84rem;
+  line-height:1.65;color:#C8D8E8;margin-bottom:.42rem;}
+.back-btn{margin-top:1.3rem;display:inline-flex;align-items:center;gap:5px;
+  padding:.58rem 1.3rem;background:rgba(2,140,140,.16);color:var(--teal2);
+  border:1px solid rgba(2,140,140,.32);border-radius:8px;
+  font-family:'Sora',sans-serif;font-size:.87rem;font-weight:600;
+  cursor:pointer;transition:background .18s;}
+.back-btn:hover{background:rgba(2,140,140,.3);}
+
+/* Flash */
+.flash{position:fixed;inset:0;pointer-events:none;z-index:999;opacity:0;}
+.flash.pop{animation:fp .6s ease;}
+@keyframes fp{0%{opacity:0}25%{opacity:.2}75%{opacity:.12}100%{opacity:0}}
+
+/* Mute */
+.mute-btn{position:fixed;bottom:1.1rem;right:1.1rem;z-index:200;
+  width:38px;height:38px;border-radius:50%;
+  background:rgba(13,27,62,.88);border:1px solid rgba(2,140,140,.38);
+  color:var(--teal2);font-size:1rem;cursor:pointer;
+  display:none;align-items:center;justify-content:center;
+  backdrop-filter:blur(6px);transition:background .18s;}
+.mute-btn:hover{background:rgba(2,140,140,.22);}
+.mute-btn.show{display:flex;}
+
+@media(max-width:580px){
+  .two-col,.ce-row{grid-template-columns:1fr;}
+  .ce-arr{display:none;}
+  .opts-grid{grid-template-columns:1fr;}
+  .stat-row{grid-template-columns:1fr 1fr;}
+  .bars-row{gap:.6rem;}
+}
+</style>
+</head>
+<body>
+
+<div class="flash" id="flash"></div>
+<button class="mute-btn" id="muteBtn" onclick="toggleMute()">🔊</button>
+
+<!-- ══ LOBBY ══════════════════════════════════ -->
+<div class="screen" id="s-lobby">
+  <div class="lobby-inner">
+    <div class="lobby-tag">EFL Teacher Education · Pre-service Training</div>
+    <h1 class="lobby-h">Classroom Decision<br>Simulation</h1>
+    <p class="lobby-p">Step into a real classroom. Make decisions under time pressure. Watch the class respond to every choice you make — in real time.</p>
+    <p class="sound-hint">🔊 Headphones recommended for full experience</p>
+    <div class="pack-grid" id="packGrid"></div>
+  </div>
+</div>
+
+<!-- ══ BRIEFING ═══════════════════════════════ -->
+<div class="screen" id="s-briefing">
+  <div class="brief-card">
+    <div class="brief-eyebrow" id="br-pack">—</div>
+    <h2 class="brief-h" id="br-theme">—</h2>
+    <div class="brief-level" id="br-level">—</div>
+    <div class="brief-divider"></div>
+    <div class="brief-label">You will face</div>
+    <div class="brief-theme-text" id="br-desc">—</div>
+    <div class="brief-tip" id="br-tip">—</div>
+    <button class="enter-btn" id="enterBtn" onclick="enterClassroom()">
+      Enter the classroom →
+    </button>
+  </div>
+</div>
+
+<!-- ══ GAME ═══════════════════════════════════ -->
+<div class="screen" id="s-game">
+
+  <div class="top-bar">
+    <span class="tbadge" id="tb-pack">—</span>
+    <span class="tbadge" id="tb-level">—</span>
+    <span class="tbadge" id="tb-theme">—</span>
+    <div class="prog-wrap" id="progDots"></div>
+  </div>
+
+  <!-- Classroom -->
+  <div class="classroom-wrap">
+    <div class="ceiling-light"></div>
+
+    <!-- Blackboard -->
+    <div class="board-area">
+      <span class="chalk-text" id="boardTxt">—</span>
+      <div class="board-timer">
+        <div class="tcircle">
+          <svg width="44" height="44" viewBox="0 0 44 44">
+            <circle class="t-bg" cx="22" cy="22" r="18"/>
+            <circle class="t-fg" id="tArc" cx="22" cy="22" r="18"
+              stroke-dasharray="113.1" stroke-dashoffset="0" stroke="#02BBBB"/>
+          </svg>
+          <div class="tnum" id="tNum">30</div>
+        </div>
+        <span class="timer-lbl" id="tLbl">sec</span>
+      </div>
+    </div>
+
+    <!-- Perspective classroom -->
+    <div class="room-perspective">
+      <div class="room-floor">
+        <div class="desk-rows" id="deskRows"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bars -->
+  <div class="bars-row">
+    <div class="bar-item">
+      <div class="bar-hd">
+        <span class="bar-lbl">🔊 Noise</span>
+        <span class="bar-val" id="nVal" style="color:#6EE7A0">Low</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="nFill" style="width:8%;background:#059669"></div></div>
+    </div>
+    <div class="bar-item">
+      <div class="bar-hd">
+        <span class="bar-lbl">😤 Tension</span>
+        <span class="bar-val" id="tVal" style="color:#6EE7A0">Calm</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="tFill" style="width:8%;background:#059669"></div></div>
+    </div>
+    <div class="bar-item">
+      <div class="bar-hd">
+        <span class="bar-lbl">📵 Off-task</span>
+        <span class="bar-val" id="oVal" style="color:#6EE7A0">Low</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="oFill" style="width:8%;background:#059669"></div></div>
+    </div>
+  </div>
+
+  <div class="cr-legend">
+    <div class="leg-it"><div class="leg-dot" style="background:#3B6B45"></div>Engaged</div>
+    <div class="leg-it"><div class="leg-dot" style="background:#7A5A1A"></div>Distracted</div>
+    <div class="leg-it"><div class="leg-dot" style="background:#7A2020"></div>Disruptive</div>
+    <div class="leg-it"><div class="leg-dot" style="background:#6B2060"></div>On phone</div>
+    <div class="leg-it"><div class="leg-dot" style="background:#3A4A58"></div>Passive</div>
+  </div>
+
+  <div class="alert-bar" id="alertBar"></div>
+
+  <!-- Scenario -->
+  <div class="sc-area" id="scArea">
+    <div class="sc-eyebrow">Situation — respond quickly</div>
+    <div class="situation" id="scTxt"></div>
+    <div class="opts-lbl">
+      What do you do?
+      <span class="t-inline" id="tInline"></span>
+    </div>
+    <div class="opts-grid" id="optsGrid"></div>
+  </div>
+
+  <!-- Feedback -->
+  <div id="fb-panel">
+    <div class="fb-box" id="fbBox">
+      <div class="fb-title" id="fbTitle"></div>
+      <span id="fbTxt"></span>
+    </div>
+    <div class="ce-box" id="ceBox" style="display:none">
+      <div class="ce-lbl">📊 What your decision caused</div>
+      <div class="ce-row">
+        <div class="ce-cell" id="ceDec"></div>
+        <div class="ce-arr">→</div>
+        <div class="ce-cell" id="ceEff"></div>
+      </div>
+    </div>
+    <div id="branchArea"></div>
+    <div class="two-col" id="twoCol" style="display:none">
+      <div class="theory-strip"><span class="sl teal">Theory</span><span id="theoryTxt"></span></div>
+      <div class="reflect-strip"><span class="sl amber">Reflect</span><span id="reflectQ"></span></div>
+    </div>
+    <textarea id="refInput" placeholder="Your reflection (optional)..." style="display:none"></textarea>
+    <button class="next-btn" id="nextBtn" onclick="nextSc()" style="display:none">Continue →</button>
+  </div>
+
+</div>
+
+<!-- ══ RESULTS ════════════════════════════════ -->
+<div class="screen" id="s-results">
+  <div class="res-inner">
+    <div class="res-h" id="resH"></div>
+    <div class="res-p" id="resP"></div>
+    <div class="stat-row">
+      <div class="scard"><div class="sval" id="rDec">—</div><div class="slbl">decisions made</div></div>
+      <div class="scard"><div class="sval" id="rSnd">—</div><div class="slbl">sound first choices</div></div>
+      <div class="scard"><div class="sval" id="rFrz">—</div><div class="slbl">freeze moments</div></div>
+    </div>
+    <div class="ref-hd">Your reflections</div>
+    <div id="refList"></div>
+    <button class="back-btn" onclick="goLobby()">← Back to sessions</button>
+  </div>
+</div>
+
+<script>
+// ═══ AUDIO ENGINE ════════════════════════════════════════════════════════════
+let AC=null, muted=false;
+
+function getAC(){
+  if(!AC){ AC=new(window.AudioContext||window.webkitAudioContext)(); }
+  if(AC.state==='suspended') AC.resume();
+  return AC;
+}
+function toggleMute(){
+  muted=!muted;
+  document.getElementById('muteBtn').textContent=muted?'🔇':'🔊';
+}
+
+// Mechanical clock tick — sharp, woody click
+function playTick(urgent=false){
+  if(muted||!AC)return;
+  const c=getAC(), t=c.currentTime;
+  // high transient click
+  const o=c.createOscillator(), g=c.createGain();
+  o.type='square'; o.frequency.value=urgent?2200:1600;
+  o.connect(g); g.connect(c.destination);
+  g.gain.setValueAtTime(.18,t);
+  g.gain.exponentialRampToValueAtTime(.001,t+.025);
+  o.start(t); o.stop(t+.03);
+  // low body thud underneath
+  const o2=c.createOscillator(), g2=c.createGain();
+  o2.type='sine'; o2.frequency.value=urgent?180:120;
+  o2.connect(g2); g2.connect(c.destination);
+  g2.gain.setValueAtTime(.12,t);
+  g2.gain.exponentialRampToValueAtTime(.001,t+.06);
+  o2.start(t); o2.stop(t+.07);
+}
+
+// Wrong choice — dull thud / error knock
+function playThud(){
+  if(muted||!AC)return;
+  const c=getAC(), t=c.currentTime;
+  const o=c.createOscillator(), g=c.createGain();
+  o.type='sine'; o.frequency.value=90;
+  o.frequency.exponentialRampToValueAtTime(40, t+.25);
+  o.connect(g); g.connect(c.destination);
+  g.gain.setValueAtTime(.28,t);
+  g.gain.exponentialRampToValueAtTime(.001,t+.3);
+  o.start(t); o.stop(t+.32);
+  // click on top
+  const o2=c.createOscillator(), g2=c.createGain();
+  o2.type='square'; o2.frequency.value=300;
+  o2.connect(g2); g2.connect(c.destination);
+  g2.gain.setValueAtTime(.1,t);
+  g2.gain.exponentialRampToValueAtTime(.001,t+.04);
+  o2.start(t); o2.stop(t+.05);
+}
+
+// Good choice — clean ascending chime
+function playChime(){
+  if(muted||!AC)return;
+  const c=getAC();
+  [523,659,784,1047].forEach((freq,i)=>{
+    const o=c.createOscillator(), g=c.createGain();
+    o.type='sine'; o.frequency.value=freq;
+    o.connect(g); g.connect(c.destination);
+    const t=c.currentTime+i*.1;
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(.14,t+.03);
+    g.gain.exponentialRampToValueAtTime(.001,t+.5);
+    o.start(t); o.stop(t+.55);
+  });
+}
+
+// Freeze — descending heavy tone
+function playFreeze(){
+  if(muted||!AC)return;
+  const c=getAC(), t=c.currentTime;
+  const o=c.createOscillator(), g=c.createGain();
+  o.type='sawtooth';
+  o.frequency.setValueAtTime(200,t);
+  o.frequency.exponentialRampToValueAtTime(50,t+1.1);
+  o.connect(g); g.connect(c.destination);
+  g.gain.setValueAtTime(.18,t);
+  g.gain.linearRampToValueAtTime(0,t+1.2);
+  o.start(t); o.stop(t+1.25);
+}
+
+// Escalation alarm — short urgent beep pair
+function playAlarm(){
+  if(muted||!AC)return;
+  const c=getAC();
+  [0, .22].forEach(delay=>{
+    const o=c.createOscillator(), g=c.createGain();
+    o.type='sine'; o.frequency.value=880;
+    o.connect(g); g.connect(c.destination);
+    const t=c.currentTime+delay;
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(.16,t+.02);
+    g.gain.linearRampToValueAtTime(.16,t+.14);
+    g.gain.linearRampToValueAtTime(0,t+.18);
+    o.start(t); o.stop(t+.2);
+  });
+}
+
+// Stubs so existing call sites don't break
+function startAmb(){}
+function stopAmb(){}
+function setAmb(){}
+
+// ═══ SVG CHARACTERS ══════════════════════════════════════════════════════════
+// Human-looking SVG characters with varied skin tones, hair, posture per state
+const SKINS=['#FDDBB4','#E8A87C','#C68642','#8D5524','#4A2C0A'];
+const HAIRS=['#1C1C1C','#2C1810','#4A3728','#8B6914','#D4AC0D','#A0522D'];
+const SHIRTS=['#3B82F6','#10B981','#8B5CF6','#F59E0B','#EF4444','#6B7280','#EC4899','#0EA5E9'];
+
+function student(state, seed){
+  const sk=SKINS[seed%5], hr=HAIRS[seed%6], sh=SHIRTS[seed%8];
+  const s=seed;
+
+  if(state==='engaged') return `<svg viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- body -->
+    <rect x="10" y="26" width="20" height="16" rx="4" fill="${sh}"/>
+    <!-- neck -->
+    <rect x="17" y="23" width="6" height="5" fill="${sk}"/>
+    <!-- head -->
+    <circle cx="20" cy="17" r="9" fill="${sk}"/>
+    <!-- hair -->
+    <path d="M11 14 Q11 6 20 6 Q29 6 29 14 Q29 10 26 9 Q20 7 14 9 Q11 10 11 14Z" fill="${hr}"/>
+    <!-- eyes open, happy -->
+    <circle cx="16.5" cy="16" r="1.4" fill="#1a1a2e"/>
+    <circle cx="23.5" cy="16" r="1.4" fill="#1a1a2e"/>
+    <circle cx="17" cy="15.6" r=".5" fill="#fff"/>
+    <circle cx="24" cy="15.6" r=".5" fill="#fff"/>
+    <!-- smile -->
+    <path d="M16 20 Q20 23 24 20" stroke="#1a1a2e" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+    <!-- arms up engaged -->
+    <line x1="10" y1="30" x2="4" y2="24" stroke="${sk}" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="30" y1="30" x2="36" y2="36" stroke="${sk}" stroke-width="3.5" stroke-linecap="round"/>
+  </svg>`;
+
+  if(state==='distracted') return `<svg viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="10" y="26" width="20" height="16" rx="4" fill="${sh}"/>
+    <rect x="17" y="23" width="6" height="5" fill="${sk}"/>
+    <!-- head slightly tilted -->
+    <g transform="rotate(-8 20 17)">
+      <circle cx="20" cy="17" r="9" fill="${sk}"/>
+      <path d="M12 13 Q12 6 20 6 Q28 6 28 13 Q25 8 20 7 Q15 8 12 13Z" fill="${hr}"/>
+      <ellipse cx="16.5" cy="16" rx="1.5" ry="1" fill="#1a1a2e"/>
+      <ellipse cx="23.5" cy="16" rx="1.5" ry="1" fill="#1a1a2e"/>
+      <!-- neutral mouth -->
+      <path d="M16.5 20 Q20 21 23.5 20" stroke="#1a1a2e" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+    </g>
+    <!-- thought bubble -->
+    <circle cx="31" cy="9" r="4" fill="rgba(255,255,255,.18)" stroke="rgba(255,255,255,.3)" stroke-width=".8"/>
+    <text x="29" y="11.5" font-size="5" fill="rgba(255,255,255,.7)">?</text>
+    <circle cx="27" cy="13" r="1.5" fill="rgba(255,255,255,.15)"/>
+    <circle cx="25" cy="15.5" r="1" fill="rgba(255,255,255,.1)"/>
+    <line x1="10" y1="30" x2="5" y2="36" stroke="${sk}" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="30" y1="30" x2="36" y2="35" stroke="${sk}" stroke-width="3.5" stroke-linecap="round"/>
+  </svg>`;
+
+  if(state==='disruptive') return `<svg viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="10" y="26" width="20" height="16" rx="4" fill="${sh}"/>
+    <rect x="17" y="23" width="6" height="5" fill="${sk}"/>
+    <circle cx="20" cy="17" r="9" fill="${sk}"/>
+    <path d="M11 13 Q11 5 20 5 Q29 5 29 13 Q26 7 20 6 Q14 7 11 13Z" fill="${hr}"/>
+    <!-- eyebrows furrowed -->
+    <line x1="14" y1="12.5" x2="18.5" y2="14" stroke="${hr}" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="26" y1="12.5" x2="21.5" y2="14" stroke="${hr}" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="16.5" cy="16" r="1.5" fill="#1a1a2e"/>
+    <circle cx="23.5" cy="16" r="1.5" fill="#1a1a2e"/>
+    <!-- open mouth / talking loud -->
+    <path d="M15 19.5 Q20 24 25 19.5" stroke="#1a1a2e" stroke-width="1.2" fill="rgba(200,100,100,.3)"/>
+    <!-- arms spread wide -->
+    <line x1="10" y1="30" x2="2" y2="26" stroke="${sk}" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="30" y1="30" x2="38" y2="26" stroke="${sk}" stroke-width="3.5" stroke-linecap="round"/>
+    <!-- exclamation -->
+    <text x="28" y="10" font-size="8" fill="#FF6B6B" font-weight="bold">!</text>
+  </svg>`;
+
+  if(state==='phone') return `<svg viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="10" y="26" width="20" height="16" rx="4" fill="${sh}"/>
+    <rect x="17" y="23" width="6" height="5" fill="${sk}"/>
+    <g transform="rotate(10 20 17)">
+      <circle cx="20" cy="17" r="9" fill="${sk}"/>
+      <path d="M12 14 Q12 6 20 6 Q28 6 28 14 Q25 8 20 7 Q15 8 12 14Z" fill="${hr}"/>
+      <ellipse cx="16.5" cy="16.5" rx="1.3" ry=".9" fill="#1a1a2e"/>
+      <ellipse cx="23.5" cy="16.5" rx="1.3" ry=".9" fill="#1a1a2e"/>
+      <path d="M17 20 Q20 20.5 23 20" stroke="#1a1a2e" stroke-width="1" stroke-linecap="round" fill="none"/>
+    </g>
+    <!-- phone in hand -->
+    <rect x="26" y="28" width="8" height="13" rx="1.5" fill="#1a1a2e"/>
+    <rect x="27" y="29.5" width="6" height="8.5" rx=".5" fill="#38BDF8"/>
+    <rect x="29.5" y="38.5" width="3" height="1" rx=".5" fill="#4A5568"/>
+    <!-- arm holding phone -->
+    <line x1="30" y1="30" x2="30" y2="28" stroke="${sk}" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="10" y1="30" x2="5" y2="36" stroke="${sk}" stroke-width="3.5" stroke-linecap="round"/>
+  </svg>`;
+
+  // passive — head down on desk
+  return `<svg viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="10" y="26" width="20" height="16" rx="4" fill="${sh}" opacity=".7"/>
+    <!-- head down -->
+    <g transform="translate(0,6) rotate(-20 20 17)">
+      <circle cx="20" cy="17" r="9" fill="${sk}" opacity=".85"/>
+      <path d="M12 14 Q12 7 20 7 Q28 7 28 14 Q25 9 20 8 Q15 9 12 14Z" fill="${hr}"/>
+      <!-- closed eyes (sleeping) -->
+      <path d="M14.5 16 Q16.5 17.5 18.5 16" stroke="#1a1a2e" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+      <path d="M21.5 16 Q23.5 17.5 25.5 16" stroke="#1a1a2e" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+    </g>
+    <line x1="10" y1="30" x2="6" y2="38" stroke="${sk}" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+    <line x1="30" y1="30" x2="34" y2="37" stroke="${sk}" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+  </svg>`;
+}
+
+// ═══ BUILD PERSPECTIVE CLASSROOM ═════════════════════════════════════════════
+function buildDesksArray(counts){
+  const order=['engaged','distracted','disruptive','phone','passive'];
+  const arr=[];
+  order.forEach(st=>{for(let i=0;i<(counts[st]||0);i++)arr.push(st);});
+  while(arr.length<24)arr.push('passive');
+  return arr.slice(0,24);
+}
+
+function renderClassroom(gridId, counts, animate=false){
+  const container=document.getElementById(gridId);
+  container.innerHTML='';
+  const arr=buildDesksArray(counts);
+  // 4 rows of 6
+  const COLS=6;
+  for(let row=0;row<4;row++){
+    const rowDiv=document.createElement('div');
+    rowDiv.className='desk-row';
+    for(let col=0;col<COLS;col++){
+      const idx=row*COLS+col;
+      const state=arr[idx]||'passive';
+      const seed=idx*7+row*3;
+      const unit=document.createElement('div');
+      unit.className='s-unit';
+      if(animate){unit.style.opacity='0';setTimeout(()=>{unit.style.transition='opacity .5s ease';unit.style.opacity='1';},idx*22+50);}
+      unit.innerHTML=`
+        <div class="s-fig">${student(state,seed)}</div>
+        <div class="s-desk ${state}"><div class="s-desk-dot"></div></div>
+      `;
+      rowDiv.appendChild(unit);
+    }
+    container.appendChild(rowDiv);
+  }
+}
+
+// ═══ DATA ════════════════════════════════════════════════════════════════════
+const PACKS=[
+{id:'cm',name:'Classroom Management',icon:'🏫',desc:'Low participation, dominant student, first 5 minutes',
+scenarios:[
+{level:'Upper Secondary',theme:'Low Participation',timer:25,
+board:'Pair speaking activity — 10 min in',
+briefDesc:'A speaking activity has broken down. Most students have stopped talking. You need to decide how to respond.',
+briefTip:'Think about what is actually causing the silence before you act.',
+situation:'You are 10 minutes into a pair speaking activity. Most pairs have stopped talking. Several students are whispering in Turkish. Only two pairs are still engaged. You stop and look at the class. Silence.',
+baseDesks:{engaged:6,distracted:10,disruptive:2,phone:2,passive:4},
+options:[
+  {key:'A',text:'Stop the activity — say "OK let\'s move on" and continue to the next task on your plan.'},
+  {key:'B',text:'Reframe it: give a tighter prompt and tell them they have exactly 90 seconds to share one idea each.'},
+  {key:'C',text:'Pick one engaged pair and ask them to share, hoping it re-energises the others.'}
+],
+feedback:[
+  {type:'bad',title:'❌ Activity abandoned',
+   text:'Silence becomes the exit strategy. Students learn that disengagement ends activities. The root cause — vague task design and no urgency — is left completely unaddressed. This exact pattern will repeat next time you run a similar activity.',
+   sound:false,noise:58,tension:38,offtask:62,
+   afterDesks:{engaged:3,distracted:12,disruptive:3,phone:3,passive:3},
+   causeD:'Moved on without addressing the disengagement',
+   causeE:'Students now know silence = activity ends. Engagement in the next task started even lower.',
+   branch:{text:'You move to the next task. A student whispers: "Why did we even do that?" Two others laugh.',
+    opts:[{key:'A',text:'Ignore it and continue.'},{key:'B',text:'"Good question — the prompt was too open. I\'ll redesign it for next time." Then move on.'}],
+    fbs:[{type:'warn',title:'Missed reflection moment',text:'Not naming what happened leaves an unresolved tension. The class sensed the activity failed — silence is not the same as acceptance.'},
+         {type:'good',title:'Professional transparency',text:'Naming a misjudgement in front of students models reflective practice. It builds trust and signals that teaching is a process, not a performance.'}]}},
+  {type:'good',title:'✓ Reframed and relaunched',
+   text:'A tighter prompt with a clear 90-second limit addresses both vagueness and low urgency simultaneously. Students re-engage almost immediately — they now know exactly what to do and how long they have. This is task-based learning principle applied in real time.',
+   sound:true,noise:16,tension:7,offtask:13,
+   afterDesks:{engaged:17,distracted:4,disruptive:1,phone:1,passive:1},
+   causeD:'Restructured task with clear prompt and time constraint',
+   causeE:'Students re-engaged within 30 seconds. Productive talk resumed across most pairs.',
+   branch:null},
+  {type:'warn',title:'⚠ Partial redirect',
+   text:'One pair shares. A few students listen. Then silence descends again within about 30 seconds. The disengagement is structural — it lives in the task design, not the students\' attitudes. Spotlighting a pair gives a temporary surface fix without touching the root cause.',
+   sound:false,noise:42,tension:26,offtask:47,
+   afterDesks:{engaged:7,distracted:10,disruptive:2,phone:2,passive:3},
+   causeD:'Redirected attention to one pair without fixing the task',
+   causeE:'30-second re-engagement, then silence returned. The structural problem remains intact.',
+   branch:{text:'The pair shares well. The class listens. Then the same silence returns within a minute.',
+    opts:[{key:'A',text:'Accept the result and move on to the next activity.'},{key:'B',text:'Use their response as a model: "Great — now everyone has 90 seconds to do the same."'}],
+    fbs:[{type:'warn',title:'Pattern left unresolved',text:'Moving on means the next similar activity will start from the same broken baseline. The class has learned nothing new about what is expected.'},
+         {type:'good',title:'Model → whole-class retry',text:'Peer output used as a scaffold before a whole-class retry is elegant teaching. It resets the task without abandoning it and gives every pair a concrete starting point.'}]}}
+],
+theory:'Krashen (1982): affective filter hypothesis — task clarity and low-stakes framing reduce anxiety and open up participation.',
+reflect:'When you imagined choosing, what were you most worried about — the students, the activity, or your own authority in the room?'},
+
+{level:'Lower Secondary',theme:'Dominant Student',timer:20,
+board:'Whole-class discussion — reading text',
+briefDesc:'One student is dominating every question. Others have stopped trying to participate.',
+briefTip:'Consider what you are communicating to the silent students with every choice you make.',
+situation:'You are running a whole-class discussion. One student answers every question before others can respond. Three students have stopped raising their hands altogether. The dominant student is looking at you, hand already in the air, waiting.',
+baseDesks:{engaged:8,distracted:6,disruptive:1,phone:2,passive:7},
+options:[
+  {key:'A',text:'Call on the student again — they give good answers and the discussion keeps moving.'},
+  {key:'B',text:'"Thank you — let\'s hear from someone we haven\'t heard from yet." Direct the question to a quieter student.'},
+  {key:'C',text:'Introduce a "no repeat" rule on the spot: once you\'ve answered, you wait until everyone else has had a turn.'}
+],
+feedback:[
+  {type:'bad',title:'❌ Exclusion reinforced',
+   text:'The lesson moves, but three students have now fully disengaged. You have communicated — unintentionally — that their participation is optional. Over time, these students stop raising their hands permanently. A discussion where 25% of the class participates is not a discussion.',
+   sound:false,noise:26,tension:20,offtask:58,
+   afterDesks:{engaged:5,distracted:8,disruptive:2,phone:3,passive:6},
+   causeD:'Called on the dominant student again',
+   causeE:'Three students opened notebooks for other subjects. They have stopped engaging with the discussion entirely.',
+   branch:{text:'Discussion continues well — but only with 4–5 students. The rest are clearly elsewhere.',
+    opts:[{key:'A',text:'Continue — it\'s still a productive discussion with the engaged students.'},{key:'B',text:'"Quick think-pair-share — 60 seconds with your neighbour, then we share."'}],
+    fbs:[{type:'warn',title:'Discussion became a performance',text:'A teacher-student exchange with a silent audience is not a discussion. The majority of the class is receiving no learning benefit.'},
+         {type:'good',title:'Think-pair-share reset',text:'Forcing every student to produce something before whole-class sharing is a powerful corrective. It takes 60 seconds and re-engages the entire room.'}]}},
+  {type:'good',title:'✓ Inclusive redirect',
+   text:'Positive, non-punitive redirection maintains the dominant student\'s dignity while actively creating space for others. As soon as you redirect, two of the three previously disengaged students raise their hands again. This is one of the most effective and low-disruption teacher moves available.',
+   sound:true,noise:12,tension:6,offtask:8,
+   afterDesks:{engaged:16,distracted:3,disruptive:0,phone:1,passive:4},
+   causeD:'Redirected to quieter students with a positive phrase',
+   causeE:'Two previously silent students immediately raised their hands. Participation broadened across the room.',
+   branch:null},
+  {type:'warn',title:'⚠ Mid-lesson rule',
+   text:'Equitable in principle, but mid-lesson rules imposed without warning feel arbitrary. The dominant student looks genuinely hurt. Two others look uncertain about whether they are allowed to answer at all. Pre-established norms work far better than reactive rules.',
+   sound:false,noise:30,tension:32,offtask:26,
+   afterDesks:{engaged:7,distracted:7,disruptive:2,phone:2,passive:6},
+   causeD:'Imposed a new participation rule mid-discussion',
+   causeE:'Dominant student visibly deflated. Class uncertain. A quiet tension spread across the room.',
+   branch:{text:'The dominant student looks hurt. The class goes uncomfortably quiet.',
+    opts:[{key:'A',text:'Hold the rule firmly — explain it briefly and continue.'},{key:'B',text:'"I love your energy — let\'s make sure everyone gets a turn. You\'ll be our expert summariser at the end."'}],
+    fbs:[{type:'info',title:'Rule held',text:'Consistent, but coldly delivered. Authority without warmth rarely produces lasting engagement. Watch this student carefully for the rest of the lesson.'},
+         {type:'good',title:'Role reframe',text:'Giving the dominant student a valued future role channels their energy productively while opening space for others right now. Warm, strategic, and effective.'}]}}
+],
+theory:'Inclusive participation structures — turn allocation, randomised calling, talking chips — consistently produce more equitable learning environments.',
+reflect:'How did you feel about potentially "silencing" an engaged student? What does that feeling reveal about your assumptions?'}
+]},
+
+{id:'efl',name:'EFL Challenges',icon:'🗣️',desc:'L1 overuse, speaking anxiety, error correction',
+scenarios:[
+{level:'Lower Secondary',theme:'L1 Overuse',timer:30,
+board:'Group planning task — English required',
+briefDesc:'All student groups are working in Turkish despite your reminders. The language switch is not happening.',
+briefTip:'Ask yourself: why are they using L1? Is it defiance, or something else?',
+situation:'Students are planning a short presentation in groups. All three groups are working entirely in Turkish. You have already reminded them twice. When you approach one group, they switch briefly — then revert the moment you move on.',
+baseDesks:{engaged:4,distracted:8,disruptive:1,phone:2,passive:9},
+options:[
+  {key:'A',text:'Announce that speaking Turkish during English tasks will now result in a penalty.'},
+  {key:'B',text:'Sit with one group, model the task in simple English, and give them 4–5 key phrases they can use right now.'},
+  {key:'C',text:'Accept the L1 use for now — focus on content quality and address language use in the next lesson.'}
+],
+feedback:[
+  {type:'bad',title:'❌ Punitive approach',
+   text:'Surface compliance, not language production. Students anxious about their English find new ways to avoid it — silence, one-word answers, waiting you out. The anxiety that caused the L1 use has now increased. This is consistently the least effective intervention for language production.',
+   sound:false,noise:54,tension:60,offtask:44,
+   afterDesks:{engaged:2,distracted:7,disruptive:3,phone:2,passive:10},
+   causeD:'Threatened a penalty for Turkish use',
+   causeE:'One group stopped talking entirely. Another switched to exaggerated whispered English. No real production.',
+   branch:{text:'Students go quiet or whisper reluctantly. One group has stopped talking altogether and is staring at the table.',
+    opts:[{key:'A',text:'Hold the rule — the task still needs to be completed.'},{key:'B',text:'"I know this is hard. Let me give you some phrases." Switch to scaffolding immediately.'}],
+    fbs:[{type:'warn',title:'Silence is not compliance',text:'Students who stop talking have found a new exit. Zero language production. The barrier remains completely unaddressed.'},
+         {type:'good',title:'Accountability + scaffolding',text:'This is the combination that works. Students need the expectation AND the linguistic tools to meet it. Both at once.'}]}},
+  {type:'good',title:'✓ Scaffolded in the moment',
+   text:'You sit with one group and write 4–5 key phrases on a sticky note: "We think...", "Our idea is...", "First we will..." Within 90 seconds that group is using English. You repeat for the next group. By the end of the task, two of three groups are working predominantly in the target language. Root cause addressed — they lacked vocabulary, not motivation.',
+   sound:true,noise:15,tension:9,offtask:14,
+   afterDesks:{engaged:14,distracted:5,disruptive:1,phone:1,passive:3},
+   causeD:'Provided immediate language scaffolding to each group',
+   causeE:'Groups had the phrases they needed. English use spread organically. Task completed in target language.',
+   branch:null},
+  {type:'warn',title:'⚠ Strategic deferral',
+   text:'There are legitimate contexts for L1 use in EFL classrooms. But unstructured acceptance without any scaffolding misses the teachable moment. During the presentation, students will need to use English — and the gap between Turkish planning and English delivery is harder to bridge publicly.',
+   sound:false,noise:22,tension:12,offtask:32,
+   afterDesks:{engaged:5,distracted:8,disruptive:1,phone:2,passive:8},
+   causeD:'Accepted L1 use without intervention',
+   causeE:'Groups planned fluently in Turkish. Presentation moment arrived — two students froze mid-sentence in English.',
+   branch:{text:'Groups finish in Turkish. During the presentation, two students lose their English mid-sentence and look at you.',
+    opts:[{key:'A',text:'Help them through it quietly with prompts and phrases.'},{key:'B',text:'Thank them and note: "Next time, let\'s plan in English too."'}],
+    fbs:[{type:'good',title:'In-the-moment scaffolding',text:'Supporting students through a public difficulty preserves their face and motivation. It also models useful language exactly when they need it most.'},
+         {type:'info',title:'Deferred correction',text:'Valid for planning. But the public gap is more memorable than a correction in the next lesson. Earlier intervention would have prevented this moment.'}]}}
+],
+theory:'Macaro (2005): optimal L1 position — context determines appropriateness, but unstructured L1 use without scaffolding rarely serves language development.',
+reflect:'What is your instinctive reaction when students speak their mother tongue? Where does that reaction come from — training, your own experience, or something else?'},
+
+{level:'Upper Secondary',theme:'Speaking Anxiety',timer:20,
+board:'Open discussion — volunteer responses',
+briefDesc:'You\'ve asked a question. The class is completely silent. Nobody will volunteer.',
+briefTip:'Silence in an EFL classroom is often anxiety, not laziness. The question is: how do you lower the barrier?',
+situation:'You ask a discussion question to the class. Nobody volunteers. Five seconds pass. Ten. A student near the back stares at the desk. Another checks their phone under the table. The silence has become visibly uncomfortable for everyone.',
+baseDesks:{engaged:3,distracted:7,disruptive:1,phone:4,passive:9},
+options:[
+  {key:'A',text:'Call on a student by name: "Zeynep, what do you think?"'},
+  {key:'B',text:'"Talk to the person next to you — 30 seconds, just one idea each." Then share as a class.'},
+  {key:'C',text:'Rephrase the question and wait again — give them more processing time.'}
+],
+feedback:[
+  {type:'warn',title:'⚠ Cold calling',
+   text:'Can work, but in a silence that has already become socially uncomfortable, public nomination may raise the affective filter further. The outcome depends entirely on how you frame it and your relationship with that specific student. High risk, medium reward.',
+   sound:false,noise:28,tension:42,offtask:32,
+   afterDesks:{engaged:5,distracted:8,disruptive:1,phone:4,passive:6},
+   causeD:'Nominated a student publicly during an uncomfortable silence',
+   causeE:'Two other students visibly relieved. Nominated student anxious. Class watching.',
+   branch:{text:'"Zeynep" says "I don\'t know" quietly and looks down. Two other students look relieved.',
+    opts:[{key:'A',text:'"That\'s fine — anyone else?" and move on.'},{key:'B',text:'"No problem — what is just one word that comes to mind when you think about this topic?"'}],
+    fbs:[{type:'warn',title:'"I don\'t know" accepted',text:'Moving on confirms that not knowing is a valid exit. This student\'s willingness to engage has likely decreased further.'},
+         {type:'good',title:'Scaffold down, not away',text:'One word is still language production. Reducing the cognitive demand gives the student a way back in without public failure. This is the right move.'}]}},
+  {type:'good',title:'✓ Pair talk first',
+   text:'Removing the public exposure completely changes the dynamic. Students who will not speak to the class will almost always speak to a partner. The 30-second pair talk generates content you can then build the whole-class discussion on — and every student arrives at the share moment having already committed something to language.',
+   sound:true,noise:16,tension:8,offtask:10,
+   afterDesks:{engaged:15,distracted:4,disruptive:1,phone:2,passive:2},
+   causeD:'Lowered stakes with pair talk before whole-class sharing',
+   causeE:'All students activated. Class arrived at sharing moment already having produced language. Discussion opened naturally.',
+   branch:null},
+  {type:'info',title:'⏳ Extended wait time',
+   text:'Research supports longer wait time — typically 5–10 seconds. But in silence that has already become socially awkward, waiting longer can compound the anxiety rather than relieve it. Strategic silence and uncomfortable silence are very different things.',
+   sound:false,noise:20,tension:36,offtask:28,
+   afterDesks:{engaged:3,distracted:7,disruptive:2,phone:5,passive:7},
+   causeD:'Rephrased and waited longer in an already uncomfortable silence',
+   causeE:'Silence deepened. One student sighed audibly. Anxiety in the room increased.',
+   branch:{text:'You rephrase. Still silence. The awkwardness is now palpable.',
+    opts:[{key:'A',text:'Name a student — the silence must break now.'},{key:'B',text:'"Write down one idea — 30 seconds. Then we\'ll share."'}],
+    fbs:[{type:'info',title:'Silence broken by nomination',text:'Gets a response, but the underlying anxiety remains unaddressed. Monitor how this student participates for the rest of the lesson.'},
+         {type:'good',title:'Written bridge',text:'Writing before speaking removes the public exposure of producing language first in front of others. Students with something on paper are far more willing to share it aloud.'}]}}
+],
+theory:'Speaking anxiety is one of the most documented barriers in EFL. Low-stakes entry points — pair talk, written preparation — consistently outperform direct nomination under pressure.',
+reflect:'When nobody responds to your question, what is your first internal reaction — frustration, self-doubt, or panic? How does that feeling shape your next move?'}
+]},
+
+{id:'feedback',name:'Feedback & Error',icon:'✏️',desc:'Error correction, recasting, public mistakes',
+scenarios:[
+{level:'Upper Secondary',theme:'Error Correction',timer:25,
+board:'Speaking exercise — monitoring student output',
+briefDesc:'A student makes a clear grammar error while speaking in front of the class.',
+briefTip:'Consider the timing, not just the correction. When you correct matters as much as how.',
+situation:'A student is presenting their answer aloud. Mid-sentence they say: "Yesterday I goed to the market." Three other students visibly react — two suppress smiles, one mouths the correct word. The presenting student hasn\'t noticed and continues speaking.',
+baseDesks:{engaged:13,distracted:4,disruptive:0,phone:2,passive:5},
+options:[
+  {key:'A',text:'Interrupt now: "It\'s went, not goed — sorry, carry on."'},
+  {key:'B',text:'Let them finish. Then respond naturally: "Great — so you went to the market. What happened next?"'},
+  {key:'C',text:'Note the error. After the activity, write the grammar point on the board for the whole class.'}
+],
+feedback:[
+  {type:'warn',title:'⚠ Mid-sentence interruption',
+   text:'Linguistically accurate but pedagogically risky. The student\'s train of thought is broken. They finish with noticeably less confidence. Two other students who were about to volunteer look more hesitant. Public mid-sentence correction is consistently associated with increased speaking anxiety in EFL learners.',
+   sound:false,noise:20,tension:30,offtask:16,
+   afterDesks:{engaged:9,distracted:6,disruptive:1,phone:2,passive:6},
+   causeD:'Interrupted the student mid-sentence to correct',
+   causeE:'Student lost confidence. Two volunteers became hesitant. Willingness to speak has visibly dropped.',
+   branch:{text:'The student finishes with noticeably less confidence. "Oh... sorry." The class is watching.',
+    opts:[{key:'A',text:'Move on — the correction was accurate and that\'s what matters.'},{key:'B',text:'"The content of your answer was genuinely strong. Went is just one of English\'s irregular verbs — there are hundreds."'}],
+    fbs:[{type:'warn',title:'Correction without recovery',text:'Technically complete but humanly incomplete. What this student will remember is the feeling of that moment — not the grammar point. The correction served the language but not the learner.'},
+         {type:'good',title:'Content affirmation restores confidence',text:'Separating form (went/goed) from content (quality of answer) signals that the substance of their contribution was genuinely valued. Small investment, large effect on future participation.'}]}},
+  {type:'good',title:'✓ Recast — implicit correction',
+   text:'You wait for them to finish, then respond: "Great — so you went to the market..." The student hears the correct form embedded naturally in your response. No disruption to flow, no public marking, confidence fully intact. Lyster & Ranta (1997) identify recasting as the most frequent and least intrusive corrective feedback type — and it works.',
+   sound:true,noise:9,tension:4,offtask:6,
+   afterDesks:{engaged:17,distracted:3,disruptive:0,phone:1,passive:3},
+   causeD:'Recasted naturally after the student finished speaking',
+   causeE:'Error corrected implicitly. Student continued confidently. Three more students volunteered after.',
+   branch:null},
+  {type:'info',title:'⏩ Deferred whole-class correction',
+   text:'Appropriate for errors that are systematic across the class. But this specific student may not connect a board note to their own spoken error — they produced it automatically, which means they likely didn\'t flag it internally as wrong. Individual errors benefit from individual, contextualised feedback.',
+   sound:false,noise:11,tension:8,offtask:10,
+   afterDesks:{engaged:13,distracted:4,disruptive:0,phone:2,passive:5},
+   causeD:'Deferred correction to a whole-class board note',
+   causeE:'Class received the grammar point. The original student copied it without making the personal connection.',
+   branch:{text:'You write "go → went (irregular)" on the board. Students copy it.',
+    opts:[{key:'A',text:'Leave it — the class has the note and that\'s sufficient.'},{key:'B',text:'"Someone used this naturally in a sentence just now — that\'s actually how these rules stick best."'}],
+    fbs:[{type:'info',title:'Grammar note without anchor',text:'Rules without connection to real use tend not to transfer to production. The example was already in the room — linking back to it takes 10 seconds and doubles the learning value.'},
+         {type:'good',title:'Contextualised rule',text:'Connecting the grammar point to a real, recent utterance — even without naming the student — grounds it in actual language production. This is how noticing leads to acquisition.'}]}}
+],
+theory:'Lyster & Ranta (1997): recasts embed the correct form in the teacher\'s response — maintaining communicative flow while providing implicit negative evidence.',
+reflect:'What is your instinct when you hear a clear error — correct immediately, or let it pass? Where does that instinct come from, and is it always the right call?'}
+]},
+
+{id:'emotional',name:'Emotional Dynamics',icon:'💬',desc:'Student challenges, conflict, teacher credibility',
+scenarios:[
+{level:'Upper Secondary',theme:'Student Challenge',timer:20,
+board:'Grammar explanation — Q&A phase',
+briefDesc:'A student has just challenged something you said. The class is watching.',
+briefTip:'Your credibility is not built by being right every time. It is built by being honest.',
+situation:'You state a grammar rule. A confident student says: "Actually, I read that\'s not always true — my private tutor told me the opposite." Three students look at you. The student is waiting, visibly confident.',
+baseDesks:{engaged:14,distracted:3,disruptive:0,phone:1,passive:6},
+options:[
+  {key:'A',text:'Hold your position: "That\'s not correct — this is the standard rule."'},
+  {key:'B',text:'"That\'s actually a fair point — English grammar does have exceptions. Let\'s look at both cases together."'},
+  {key:'C',text:'"Interesting — we\'ll come back to that" and continue the lesson.'}
+],
+feedback:[
+  {type:'bad',title:'❌ Authority over accuracy',
+   text:'If the student\'s tutor had a point — even partially — dismissing it damages both factual accuracy and intellectual trust. The class watches and draws a conclusion: questioning the teacher leads to dismissal. Over time, students stop raising genuine questions entirely.',
+   sound:false,noise:28,tension:50,offtask:22,
+   afterDesks:{engaged:10,distracted:5,disruptive:1,phone:2,passive:6},
+   causeD:'Dismissed the challenge without engaging with its content',
+   causeE:'Student appeared unconvinced. Two students who were about to ask questions lowered their hands.',
+   branch:{text:'The student says "OK" but looks unconvinced. You check later and realise their tutor was partially right.',
+    opts:[{key:'A',text:'Say nothing — you already moved on and revisiting would be awkward.'},{key:'B',text:'Next lesson: "I want to revisit something — you raised a point I looked into and there\'s more to it."'}],
+    fbs:[{type:'warn',title:'Error left standing',text:'Students who verify and find you were wrong — and you said nothing — draw a permanent conclusion about the classroom as a place for honest inquiry.'},
+         {type:'good',title:'Public self-correction',text:'Returning to correct yourself is one of the highest-trust acts a teacher can perform. Students remember it for years. It costs nothing and builds everything.'}]}},
+  {type:'good',title:'✓ Acknowledged complexity',
+   text:'"That\'s a fair point — English grammar genuinely has edge cases and exceptions. Let\'s look at the base rule and the exception together." This is not a loss of authority. It is a demonstration of expert knowledge — the ability to hold and discuss nuance. Three passive students visibly lean forward.',
+   sound:true,noise:10,tension:5,offtask:7,
+   afterDesks:{engaged:18,distracted:2,disruptive:0,phone:1,passive:3},
+   causeD:'Acknowledged the point and engaged with it intellectually',
+   causeEffect:'Questioner fully engaged. Three passive students leaned in. Intellectual atmosphere lifted noticeably.',
+   branch:null},
+  {type:'warn',title:'⚠ Deflected',
+   text:'"We\'ll come back to that" rarely happens. The student knows it, and so does the class. Trust in the classroom as a place where real questions receive real engagement erodes — quietly, one deflection at a time.',
+   sound:false,noise:18,tension:26,offtask:18,
+   afterDesks:{engaged:11,distracted:5,disruptive:0,phone:2,passive:6},
+   causeD:'Deflected the question and continued',
+   causeE:'Questioner deflated. One other student who had their hand up lowered it.',
+   branch:{text:'After class, the student approaches: "Did you look it up? Was I right?"',
+    opts:[{key:'A',text:'"I\'ll check and get back to you next lesson."'},{key:'B',text:'"You were partially right — here\'s the fuller picture." Explain briefly, right now.'}],
+    fbs:[{type:'info',title:'Deferred to next lesson',text:'Better than nothing, but follow-through is critical. If you don\'t return to it, the deflection becomes permanent and the student remembers.'},
+         {type:'good',title:'Immediate honest engagement',text:'One-on-one, informal, right now. The student gets intellectual respect, a nuanced answer, and a model of how to handle being partially wrong. This moment can define your relationship with this student for the year.'}]}}
+],
+theory:'Finn & Schrodt (2012): teacher credibility — competence, trustworthiness, caring — is enhanced by intellectual honesty, not diminished by it.',
+reflect:'How did you feel imagining a student challenging your knowledge in front of the class? What does that feeling reveal about your relationship with authority?'}
+]},
+
+{id:'tech',name:'Tech & Off-Task',icon:'📱',desc:'Phone use, technical failure, distraction',
+scenarios:[
+{level:'Upper Secondary',theme:'Off-Task Behaviour',timer:15,
+board:'Individual reading task — silent work',
+briefDesc:'Three students at the back are clearly off-task. The rest of the class is working. You\'re at the front.',
+briefTip:'How you respond will be visible to every student who IS on task. Their perception of fairness matters.',
+situation:'Students are doing a silent individual reading task. Three students at the back are not reading: one is on their phone, one has earbuds in, one is doing homework for another subject. The rest of the class is on task. You are mid-explanation with a student at the front.',
+baseDesks:{engaged:16,distracted:2,disruptive:0,phone:3,passive:3},
+options:[
+  {key:'A',text:'Stop your explanation, walk to the back, and address the off-task students directly and publicly.'},
+  {key:'B',text:'Without stopping, drift toward the back while continuing to speak — make calm eye contact as you pass.'},
+  {key:'C',text:'Finish your explanation first, then approach the off-task students individually and quietly.'}
+],
+feedback:[
+  {type:'warn',title:'⚠ Public confrontation',
+   text:'All eyes turn to the back. "I wasn\'t doing anything." Two students swivel to watch. The confrontation becomes a performance. The reading task — which was going well — is now disrupted for the entire class. You have given this behaviour more attention than it merits, and potentially more than the student was seeking.',
+   sound:false,noise:58,tension:50,offtask:36,
+   afterDesks:{engaged:11,distracted:5,disruptive:2,phone:2,passive:4},
+   causeD:'Stopped the lesson and confronted off-task students publicly',
+   causeEffect:'Whole class disrupted. Confrontation became a public event. Reading task momentum lost for everyone.',
+   branch:{text:'"I wasn\'t doing anything" — flat tone. Two students watching. The room is tense.',
+    opts:[{key:'A',text:'"Phone away. We are in class." Firm and public.'},{key:'B',text:'Lower voice: "Let\'s keep this between us — back to the task." Then move away calmly.'}],
+    fbs:[{type:'info',title:'Firm and public',text:'Gets compliance, but the audience makes the student\'s next move — defiant or compliant — a room-wide event. You\'ve escalated the stakes for both of you.'},
+         {type:'good',title:'Privacy removes the incentive for defiance',text:'No audience means no performance. The student saves face. You maintain control. No power struggle, no spectacle.'}]}},
+  {type:'good',title:'✓ Proximity management',
+   text:'You continue your explanation and drift toward the back. Before you arrive, the phone disappears. The earbuds come out. The homework is closed. Not a word spoken. The rest of the class never breaks focus. This is Kounin\'s "withitness" in practice — and it is the single most powerful preventive classroom management tool available.',
+   sound:true,noise:11,tension:5,offtask:7,
+   afterDesks:{engaged:20,distracted:1,disruptive:0,phone:0,passive:3},
+   causeD:'Used proximity without stopping or naming anyone',
+   causeEffect:'All three self-corrected before you arrived. Class focus completely uninterrupted.',
+   branch:null},
+  {type:'info',title:'⏩ Delayed individual approach',
+   text:'Valid when the behaviour is not actively disrupting others. You finish, approach quietly, the phone disappears on approach. A private word is possible. The downside: the behaviour continued visibly for 2–3 minutes — and the students who were on task noticed.',
+   sound:false,noise:14,tension:8,offtask:16,
+   afterDesks:{engaged:16,distracted:2,disruptive:0,phone:3,passive:3},
+   causeD:'Finished explanation, then approached quietly after',
+   causeEffect:'Private expectation set successfully. But compliant students saw off-task behaviour go unaddressed for several minutes.',
+   branch:{text:'Phone disappears on approach. Student looks up neutrally.',
+    opts:[{key:'A',text:'Say nothing — phone is gone, the issue is resolved.'},{key:'B',text:'"Thanks — can you stay focused for the next 10 minutes? I\'ll check back in."'}],
+    fbs:[{type:'info',title:'Resolved without acknowledgement',text:'Low confrontation, but without a signal the student doesn\'t know if you noticed or cared. The behaviour may reappear in 5 minutes.'},
+         {type:'good',title:'Time-bound expectation',text:'"10 minutes" is specific and achievable. It signals you are present and attentive without creating a confrontation. Simple, effective, respectful.'}]}}
+],
+theory:'Kounin (1970): "withitness" — the teacher\'s demonstrated awareness of everything happening in the room — is the strongest single predictor of preventive classroom management.',
+reflect:'Which option felt most natural? Which most uncomfortable? What does the gap between those two feelings tell you about your instincts?'}
+]}
+];
+
+// ═══ EXTRA SCENARIOS INJECTED ════════════════════════════════════════════════
+// Append extra scenarios to each pack
+const EXTRA={
+cm:[
+{level:'Primary',theme:'First 5 Minutes',timer:20,
+board:'Morning warm-up — getting started',
+briefDesc:'You walk into the classroom and nothing is going as planned. Students are everywhere, talking, distracted. You haven\'t even started yet.',
+briefTip:'The first 5 minutes set the tone for the entire lesson. How you enter the room matters.',
+situation:'You enter the classroom. Half the students are out of their seats. Two boys are arguing near the window. Three girls are still taking things out of their bags. One student is eating. You need to start the lesson.',
+baseDesks:{engaged:3,distracted:8,disruptive:3,phone:1,passive:9},
+options:[
+  {key:'A',text:'Raise your voice: "Everyone sit down NOW — we\'re starting!"'},
+  {key:'B',text:'Stand at the front, make eye contact, and wait silently until the class notices you and settles.'},
+  {key:'C',text:'Start writing a warm-up question on the board and calmly tell students to sit and answer it.'}
+],
+feedback:[
+  {type:'warn',title:'⚠ Loud command',text:'Gets immediate attention, but starts the lesson on a tense footing. Students who were already settled feel the aggression too. Works once — loses power quickly when used as a default.',sound:false,noise:55,tension:50,offtask:35,afterDesks:{engaged:6,distracted:8,disruptive:2,phone:1,passive:7},
+   causeD:'Raised voice to command attention',causeE:'Class settled but visibly tense. Two students looked resentful. Lesson atmosphere started negative.',
+   branch:{text:'Class sits, but the mood is cold. The arguing boys are still glaring at each other.',
+    opts:[{key:'A',text:'Ignore the tension and start the lesson.'},{key:'B',text:'Acknowledge it: "Let\'s take 10 seconds to reset. Everyone breathe." Then start.'}],
+    fbs:[{type:'warn',title:'Unresolved tension stays',text:'That tension will resurface mid-lesson. Starting without acknowledging it is a short-term fix.'},
+         {type:'good',title:'10-second reset',text:'A deliberate pause signals that you control the pace — not the chaos. Simple and surprisingly effective with young learners.'}]}},
+  {type:'info',title:'⏳ Silent wait',text:'Powerful when students know this routine. With an unfamiliar class or early in the year, it can simply be ignored — and the longer you wait without being noticed, the harder recovery becomes.',sound:false,noise:40,tension:30,offtask:45,afterDesks:{engaged:5,distracted:9,disruptive:3,phone:1,passive:6},
+   causeD:'Waited silently for class to notice',causeE:'Some students noticed and settled. Others didn\'t register your presence for 45 seconds. Awkward.',
+   branch:{text:'After 40 seconds, most have noticed. But two students near the back haven\'t looked up at all.',
+    opts:[{key:'A',text:'Walk toward them — proximity will do it.'},{key:'B',text:'Say their names quietly and make eye contact.'}],
+    fbs:[{type:'good',title:'Proximity — quiet and effective',text:'Moving toward them without public confrontation. They settle without a scene. Class takes note.'},
+         {type:'good',title:'Name + eye contact',text:'Low-key, personal, effective. Nobody else needs to hear it.'}]}},
+  {type:'good',title:'✓ Task on board, calm start',text:'Writing the warm-up question gives students something to do immediately. Students who are ready start working. The visual cue communicates that the lesson has begun without any confrontation. The noise level drops organically as students shift attention.',sound:true,noise:18,tension:10,offtask:12,afterDesks:{engaged:14,distracted:5,disruptive:1,phone:1,passive:3},
+   causeD:'Wrote task on board and calmly directed students',causeE:'Students with nothing to do found something to do. Room settled within 90 seconds without any conflict.',branch:null}
+],theory:'Kounin (1970): establishing clear entry routines is one of the strongest predictors of sustained classroom order. Consistency matters more than authority.',
+reflect:'What is your instinct when a class is chaotic as you enter — take control loudly, or stay calm and let the routine do the work? Where does that instinct come from?'},
+
+{level:'Lower Secondary',theme:'Mixed Ability',timer:25,
+board:'Group reading task — differentiated materials',
+briefDesc:'You have a mixed-ability class. The stronger students have finished early and are bored. The weaker ones are struggling and anxious.',
+briefTip:'In a mixed-ability class, finishing early is not success — it\'s a signal that the task wasn\'t pitched right for that student.',
+situation:'It\'s 15 minutes into a reading comprehension task. Four students near the front have finished and are visibly bored — whispering and flicking pens. Meanwhile, three students at the back are clearly struggling, barely past the first paragraph. You have 10 minutes left.',
+baseDesks:{engaged:7,distracted:7,disruptive:2,phone:2,passive:6},
+options:[
+  {key:'A',text:'Tell the finishers to "go back and check your answers" — buy yourself time to help the struggling students.'},
+  {key:'B',text:'Give the finishers an extension task and quietly move to support the struggling students with targeted questions.'},
+  {key:'C',text:'Ask the finishers to pair with the struggling students and help them through the text.'}
+],
+feedback:[
+  {type:'warn',title:'⚠ "Check your answers"',text:'"Check your answers" is transparent to students who know they\'ve done it correctly. They disengage within 30 seconds and the whispering returns. You\'ve bought yourself perhaps 2 minutes.',sound:false,noise:42,tension:25,offtask:50,afterDesks:{engaged:6,distracted:8,disruptive:2,phone:2,passive:6},
+   causeD:'Told finishers to check answers as a time-filler',causeE:'Finishers saw through it immediately. Disengagement returned within 60 seconds. Struggling students unhelped.',
+   branch:{text:'The finishers are whispering again within a minute. One is drawing. Another is on their phone.',
+    opts:[{key:'A',text:'Accept it — at least the struggling students are getting support.'},{key:'B',text:'Pause and give the finishers a genuine extension challenge: "Now write 3 questions about the text that aren\'t in the task."'}],
+    fbs:[{type:'warn',title:'Two-tier classroom',text:'A classroom where half the students are unengaged is a management problem waiting to escalate. The off-task behaviour will spread.'},
+         {type:'good',title:'Genuine extension restores engagement',text:'Asking finishers to write their own questions is cognitively demanding and requires re-reading. It works — and it takes 10 seconds to set up.'}]}},
+  {type:'good',title:'✓ Extension + targeted support',text:'Giving finishers a genuine extension task — write 3 questions, summarise in one sentence, find evidence — occupies them meaningfully. This frees you to kneel beside the struggling students and ask targeted questions that scaffold comprehension without giving answers.',sound:true,noise:14,tension:8,offtask:10,afterDesks:{engaged:17,distracted:4,disruptive:1,phone:1,passive:1},
+   causeD:'Differentiated task given to finishers, targeted support to struggling students',causeE:'All students productively engaged simultaneously. Struggling students made visible progress. Finishers challenged appropriately.',branch:null},
+  {type:'info',title:'⏩ Peer support pairing',text:'Well-intentioned, but pairs work best when both students understand the goal is collaborative, not one-sided tutoring. Without structure, the stronger student often does the work for the weaker one — which helps neither.',sound:false,noise:28,tension:18,offtask:30,afterDesks:{engaged:10,distracted:6,disruptive:1,phone:2,passive:5},
+   causeD:'Paired strong students with struggling ones without structure',causeE:'Two pairs worked well. One strong student did the task for the other. One pair argued quietly.',
+   branch:{text:'Two pairs are working well. One strong student has effectively taken over and is reading the answers aloud while the other copies.',
+    opts:[{key:'A',text:'Accept it — at least something is being transferred.'},{key:'B',text:'Intervene quietly: "Can you ask them a question instead of giving the answer? Let them find it."'}],
+    fbs:[{type:'warn',title:'Copying is not learning',text:'The weaker student is receiving answers, not developing comprehension. This kind of "help" actively delays independent reading development.'},
+         {type:'good',title:'Question instead of answer',text:'Reframing the helper\'s role from answer-giver to questioner is the difference between peer support and peer dependency. A simple instruction that transforms the interaction.'}]}}
+],theory:'Vygotsky (1978): ZPD — every learner needs tasks at the edge of their capability, with appropriate support. "One task fits all" fails students at both ends.',
+reflect:'When you notice a student has finished long before the others, what is your first reaction — relief or concern? What does that reaction reveal about your teaching assumptions?'},
+
+{level:'Upper Secondary',theme:'End of Lesson Chaos',timer:15,
+board:'Wrap-up and homework explanation',
+briefDesc:'You\'re in the last 3 minutes of the lesson. Students have mentally left — bags are being packed, conversations are starting.',
+briefTip:'If students are packing up while you\'re still talking, the lesson has already ended in their minds.',
+situation:'You have 3 minutes left and need to explain the homework assignment. But students have already started packing their bags, some are standing up, and the noise level is rising. You raise your voice slightly — barely anyone is listening.',
+baseDesks:{engaged:3,distracted:7,disruptive:3,phone:5,passive:6},
+options:[
+  {key:'A',text:'Push through — raise your voice louder and explain the homework over the noise.'},
+  {key:'B',text:'Stop speaking. Write the homework clearly on the board and point to it in silence.'},
+  {key:'C',text:'"Stop. Bags down. Nobody leaves until I\'ve explained this and you\'ve written it down."'}
+],
+feedback:[
+  {type:'bad',title:'❌ Competing with the noise',text:'Shouting homework instructions over a packing class is one of the least effective teaching moments possible. Fewer than 30% will actually hear and retain it. Expect half the class to email you asking what the homework was.',sound:false,noise:72,tension:45,offtask:78,afterDesks:{engaged:2,distracted:6,disruptive:4,phone:6,passive:6},
+   causeD:'Tried to explain homework over rising noise and packing',causeE:'Approximately 30% heard the instructions. The rest are already out the door mentally. Inbox will fill up with "what was the homework?" messages.',
+   branch:{text:'The bell rings mid-explanation. Half the class is already moving toward the door.',
+    opts:[{key:'A',text:'Call after them: "It\'s on the board if you missed it!"'},{key:'B',text:'Stand in the doorway: "Wait — 20 seconds. Look at the board. Now you can go."'}],
+    fbs:[{type:'warn',title:'Homework explanation failed',text:'Information delivered to a departing class is not delivered. Plan for this next time — homework goes on the board before the final 5 minutes.'},
+         {type:'good',title:'20-second doorway hold',text:'Standing in the doorway for 20 seconds to direct attention to the board is a low-cost, high-impact move. Students leave having actually seen the task.'}]}},
+  {type:'good',title:'✓ Board + silence',text:'Writing homework on the board and pointing silently is more effective than speaking over noise. Students who are packing look up to see what you\'re doing. The visual persists — they can write it down at their own pace and the information doesn\'t disappear when you stop talking.',sound:true,noise:28,tension:15,offtask:22,afterDesks:{engaged:8,distracted:8,disruptive:2,phone:3,passive:3},
+   causeD:'Stopped speaking, wrote homework on board, pointed silently',causeE:'Students looked up when you stopped. Most copied it down. Noise dropped because there was nothing to respond to.',branch:null},
+  {type:'info',title:'⏩ Firm stop and hold',text:'Can work, but late in a lesson it often generates resentment — students feel punished for something that is partly a structural problem (lesson ran long, homework explained too late). The content of the hold matters more than the hold itself.',sound:false,noise:40,tension:42,offtask:35,afterDesks:{engaged:7,distracted:6,disruptive:3,phone:3,passive:5},
+   causeD:'Stopped class and held them after packing had started',causeE:'Students put bags down with visible resentment. Three students near the door did not sit back down.',
+   branch:{text:'Class stops, resentfully. One student mutters something under their breath.',
+    opts:[{key:'A',text:'Ignore the muttering and explain the homework quickly.'},{key:'B',text:'"I hear you — this is 90 seconds. Then you\'re done."'}],
+    fbs:[{type:'warn',title:'Power held, mood damaged',text:'You have compliance but at a cost. Start homework explanations earlier next time — this situation was predictable.'},
+         {type:'good',title:'Acknowledged the frustration',text:'Naming the time limit makes the hold feel fair rather than punitive. 90 seconds is nothing — most students accept it when they know exactly when it ends.'}]}}
+],theory:'Lesson closure research consistently shows that homework explained in the final 2 minutes has significantly lower completion rates than homework introduced mid-lesson.',
+reflect:'Think about how you plan the end of a lesson. Do you consistently run out of time? What does that reveal about your lesson pacing assumptions?'}
+],
+
+efl:[
+{level:'Primary',theme:'Vocabulary Gap',timer:20,
+board:'Storytelling activity — vocabulary in context',
+briefDesc:'A student has stopped mid-sentence. They clearly want to say something but don\'t have the word for it.',
+briefTip:'A vocabulary gap is a learning moment — how you respond either opens or closes the learner\'s willingness to take risks in English.',
+situation:'A 10-year-old is retelling a story in front of the class. Mid-sentence, they stop, look frustrated, and say "I don\'t know the word..." then mime something with their hands — clearly trying to describe someone crying hard. The class is watching.',
+baseDesks:{engaged:12,distracted:4,disruptive:1,phone:0,passive:7},
+options:[
+  {key:'A',text:'Give them the word immediately: "Sobbing — the word is sobbing."'},
+  {key:'B',text:'Guide them to it: "Can you describe it another way? What does the person\'s face look like?"'},
+  {key:'C',text:'"That\'s OK — skip that part and carry on."'}
+],
+feedback:[
+  {type:'info',title:'⏩ Word given immediately',text:'Efficient, but removes the learning opportunity. The student receives the word passively rather than struggling toward it. Research suggests words encountered through effortful retrieval are retained far better than words simply received.',sound:false,noise:10,tension:8,offtask:8,afterDesks:{engaged:14,distracted:4,disruptive:0,phone:0,passive:6},
+   causeD:'Provided the target word without scaffolding the search',causeE:'Student continued fluently. But passive receipt means retention is lower than if they had worked toward it.',
+   branch:{text:'Student nods and continues. But 10 minutes later, they need the word again — and pause again.',
+    opts:[{key:'A',text:'Give them the word again.'},{key:'B',text:'"Do you remember the word we found earlier? Start with the letter S..."'}],
+    fbs:[{type:'warn',title:'Same gap, second time',text:'Providing the word twice confirms the word isn\'t sticking. The retrieval process is what creates memory — giving it removes that process.'},
+         {type:'good',title:'Cueing the retrieval',text:'Giving a phonological clue ("starts with S") prompts retrieval rather than passive receipt. Even a partial cue that leads to the word is more powerful than simply saying it.'}]}},
+  {type:'good',title:'✓ Guided circumlocution',text:'"Can you describe it another way?" is one of the most important questions in EFL pedagogy. It teaches communication strategies — circumlocution, description, paraphrase — that learners need for life. The student says "the face is very sad and... water comes from eyes?" and the class helps find the word together. This moment is more valuable than any planned vocabulary exercise.',sound:true,noise:12,tension:6,offtask:6,afterDesks:{engaged:18,distracted:3,disruptive:0,phone:0,passive:3},
+   causeD:'Guided student toward the word through description',causeE:'Student used circumlocution successfully. Class engaged in finding the word together. Vocabulary moment created organically.',branch:null},
+  {type:'warn',title:'⚠ Skip and move on',text:'Well-intentioned — removes the public pressure — but also communicates that vocabulary gaps are dead ends rather than navigable moments. The student learns to avoid words they don\'t know rather than work around them.',sound:false,noise:10,tension:10,offtask:15,afterDesks:{engaged:10,distracted:5,disruptive:1,phone:0,passive:8},
+   causeD:'Allowed student to skip the difficult word',causeE:'Pressure removed but learning opportunity lost. Student learned that gaps are avoided, not bridged.',
+   branch:{text:'The student continues but their retelling becomes noticeably simpler — avoiding anything they might not know the word for.',
+    opts:[{key:'A',text:'Accept the simplified version.'},{key:'B',text:'"I noticed you skipped that part — can we go back? What was happening at that moment?"'}],
+    fbs:[{type:'warn',title:'Avoidance strategy reinforced',text:'If students learn that simplification avoids difficulty, their interlanguage fossilises. Complexity requires risk — and risk requires teacher support.'},
+         {type:'good',title:'Gentle return to the gap',text:'Going back to the difficult moment shows the student that vocabulary gaps are problems to solve, not walls to walk around. This reframe is fundamental.'}]}}
+],theory:'Swain (1985): comprehensible output hypothesis — struggling to express meaning pushes learners to notice gaps and develop language more than comprehensible input alone.',
+reflect:'When a student can\'t find a word, what is your first instinct — supply it, scaffold it, or skip it? What does that reveal about your beliefs about how vocabulary is learned?'},
+
+{level:'Upper Secondary',theme:'Pronunciation Error',timer:20,
+board:'Oral presentation — pronunciation monitoring',
+briefDesc:'A student is presenting and consistently mispronouncing a key word in a way that affects intelligibility.',
+briefTip:'Pronunciation correction mid-presentation is one of the highest-risk interventions available. Timing is everything.',
+situation:'A student is giving a prepared oral presentation on climate change. They are mispronouncing "developed" as "deh-VEE-loped" consistently — every time. It sounds unusual but is still understandable. They are clearly well-prepared and confident.',
+baseDesks:{engaged:14,distracted:3,disruptive:0,phone:2,passive:5},
+options:[
+  {key:'A',text:'Interrupt mid-presentation to model the correct pronunciation.'},
+  {key:'B',text:'Let the presentation finish. Afterwards, use the word naturally in your feedback: "Your point about developed nations was really strong..."'},
+  {key:'C',text:'Note it privately. After the lesson, approach the student individually and demonstrate the correct form.'}
+],
+feedback:[
+  {type:'bad',title:'❌ Mid-presentation interruption',text:'Interrupting a prepared, confident presentation for a pronunciation error that does not impede understanding is very difficult to justify. The student\'s confidence takes a significant hit. Other students become more self-conscious about their own pronunciation. The informational content of the presentation — which was the point — is buried under the correction.',sound:false,noise:20,tension:42,offtask:18,afterDesks:{engaged:10,distracted:5,disruptive:0,phone:2,passive:7},
+   causeD:'Interrupted confident presentation for intelligible pronunciation error',causeE:'Student visibly flustered. Lost their thread. Remaining students became noticeably more hesitant about their own presentations.',
+   branch:{text:'The student loses their thread. They restart, now reading directly from notes, no longer making eye contact.',
+    opts:[{key:'A',text:'Move on — the correction needed to happen.'},{key:'B',text:'"You were doing really well — find your place and carry on from where you were."'}],
+    fbs:[{type:'bad',title:'Confidence not recovered',text:'The correction may have been technically valid but the cost — a confident student reduced to reading from notes — is disproportionate to the gain.'},
+         {type:'good',title:'Redirect back to confidence',text:'Acknowledging what was going well and inviting them to find their place re-centres the presentation on content and confidence, not the correction.'}]}},
+  {type:'good',title:'✓ Natural recast in feedback',text:'Using the word correctly and naturally in your feedback response models the pronunciation without singling the student out. They hear the correct form in a low-stakes moment and can internalise it without public embarrassment. Their confidence in the presentation is protected.',sound:true,noise:10,tension:5,offtask:8,afterDesks:{engaged:17,distracted:3,disruptive:0,phone:1,passive:3},
+   causeD:'Recasted the pronunciation naturally in post-presentation feedback',causeE:'Student heard correct form in context. Presentation confidence preserved. Other students less anxious about their own presentations.',branch:null},
+  {type:'good',title:'✓ Private post-lesson correction',text:'Approaching the student individually after the lesson is respectful and targeted. No public embarrassment, personalised feedback, student can ask questions. The slight downside is that if they present again before that conversation, the error continues.',sound:true,noise:8,tension:5,offtask:7,afterDesks:{engaged:15,distracted:3,disruptive:0,phone:2,passive:4},
+   causeD:'Deferred correction to private post-lesson conversation',causeE:'Presentation uninterrupted. Student\'s confidence intact. Targeted correction delivered privately.',branch:null}
+],theory:'Derwing & Munro (2005): intelligibility and communicative effectiveness are more important targets than native-like accent in EFL pronunciation pedagogy.',
+reflect:'How do you decide which pronunciation errors to correct and which to leave? Do you have a consistent principle, or do you decide case by case?'},
+
+{level:'Lower Secondary',theme:'Silent Student',timer:25,
+board:'Role play activity — speaking pairs',
+briefDesc:'One student has said nothing for the entire lesson. They are present and attentive but completely silent.',
+briefTip:'Silence in a language classroom can mean many different things. Diagnosing the cause before intervening is more important than the intervention itself.',
+situation:'It\'s 25 minutes into a speaking activity. You have been circulating and giving feedback. You notice that one student — Asel — has said nothing the entire lesson. Her partner has done all the talking. Asel is listening, looks attentive, but has not produced a single word in English. She doesn\'t look distressed — just very still.',
+baseDesks:{engaged:10,distracted:5,disruptive:1,phone:2,passive:6},
+options:[
+  {key:'A',text:'Ask her directly in front of the class: "Asel, what do you think about this?"'},
+  {key:'B',text:'Kneel beside her desk quietly: "Asel, you\'ve been listening really carefully — what\'s one thing you want to say?"'},
+  {key:'C',text:'Leave her alone — she\'s clearly engaged and silent participation is still participation.'}
+],
+feedback:[
+  {type:'warn',title:'⚠ Public nomination',text:'Calling on Asel in front of the class when she has been silent for 25 minutes puts maximum public pressure on her at the most anxiety-inducing possible moment. If she is silent due to anxiety, this is likely to increase it significantly.',sound:false,noise:22,tension:45,offtask:20,afterDesks:{engaged:9,distracted:6,disruptive:1,phone:2,passive:6},
+   causeD:'Publicly nominated silent student mid-activity',causeE:'Asel looked panicked. Produced one hesitant word. Looked down for the remainder of the lesson.',
+   branch:{text:'Asel says "I don\'t know" very quietly and looks down. Her partner looks uncomfortable.',
+    opts:[{key:'A',text:'Move on quickly to reduce her discomfort.'},{key:'B',text:'"That\'s completely fine. What about just one word — what word describes your character?"'}],
+    fbs:[{type:'warn',title:'Public pressure without recovery',text:'Moving on quickly leaves Asel with the experience of public failure. The silence will deepen in subsequent lessons.'},
+         {type:'good',title:'One word lowers the barrier',text:'Reducing the demand to a single word makes production achievable. Even one word breaks the silence pattern and gives Asel a point of entry.'}]}},
+  {type:'good',title:'✓ Private, low-stakes approach',text:'Kneeling beside her desk and speaking quietly removes the public pressure entirely. Acknowledging that she\'s been listening reframes silence as active engagement. "One thing" is a minimal, non-threatening ask. This approach is consistent with research on second language silence — many silent learners are processing deeply and are ready to produce when the stakes are right.',sound:true,noise:12,tension:8,offtask:10,afterDesks:{engaged:14,distracted:4,disruptive:1,phone:2,passive:3},
+   causeD:'Approached privately, acknowledged listening, asked for one contribution',causeE:'Asel produced two sentences quietly. Visibly more relaxed for the rest of the lesson.',branch:null},
+  {type:'info',title:'⏩ Leave her to process',text:'Valid if this is a pattern you\'ve chosen deliberately — some researchers (Ohta, 2001) argue that silent learners are active participants and produce language once they feel safe. However, without any private check-in, you don\'t know if this silence is productive or if Asel needs support that she hasn\'t asked for.',sound:false,noise:10,tension:10,offtask:15,afterDesks:{engaged:11,distracted:5,disruptive:1,phone:2,passive:5},
+   causeD:'Left silent student without intervention',causeE:'Asel remained silent for the entire lesson. You don\'t know why.',
+   branch:{text:'End of lesson. Asel packs up quietly and leaves. You still don\'t know why she was silent.',
+    opts:[{key:'A',text:'Note it and observe her more carefully next lesson.'},{key:'B',text:'Catch her at the door: "Asel — are you OK? How did today feel?"'}],
+    fbs:[{type:'info',title:'Observe first approach',text:'Valid. One lesson of silence is data, not a crisis. But establish a pattern of checking in — either way.'},
+         {type:'good',title:'Brief doorway check-in',text:'30 seconds at the door can reveal whether the silence was processing, anxiety, personal difficulty, or simply a quiet personality. This information changes how you plan the next lesson.'}]}}
+],theory:'Ohta (2001): private speech and silent participation in SLA — learners who appear silent are often engaging in active covert processing. But teacher diagnosis matters.',
+reflect:'How do you distinguish between a student who is silently processing and one who is silently struggling? What cues do you rely on, and how reliable are they?'}
+],
+
+lesson:[
+{level:'Upper Secondary',theme:'Lesson Running Over',timer:20,
+board:'Discussion activity — 5 min remaining',
+briefDesc:'You have 5 minutes left but still have 15 minutes of content planned. Something has to go.',
+briefTip:'Choosing what to cut reveals what you actually believe is most important in your lesson.',
+situation:'You look at the clock. 5 minutes left. You still have the feedback stage, the grammar summary, and the homework explanation to get through. You\'ve been absorbed in a genuinely great class discussion that ran long. Students are engaged. Something has to go.',
+baseDesks:{engaged:16,distracted:2,disruptive:0,phone:1,passive:5},
+options:[
+  {key:'A',text:'Rush through all three remaining stages as quickly as possible — summarise the grammar, give the homework, close fast.'},
+  {key:'B',text:'Cut the grammar summary. Close the discussion properly, write the homework on the board, and go.'},
+  {key:'C',text:'Let the discussion run to the natural end — the engagement is too valuable to cut. Deal with the rest next lesson.'}
+],
+feedback:[
+  {type:'warn',title:'⚠ Rushed ending',text:'Rushing through three stages in 5 minutes leaves all three half-done. The grammar summary is too fast to be useful, the homework explanation is unclear, and the lesson ends in a flurry of anxiety rather than closure. Students leave confused rather than satisfied.',sound:false,noise:38,tension:32,offtask:30,afterDesks:{engaged:8,distracted:7,disruptive:1,phone:2,passive:6},
+   causeD:'Attempted to cover all remaining content in 5 minutes',causeE:'Grammar summary too fast to land. Homework unclear to at least 40% of students. Lesson ended anxiously.',
+   branch:{text:'Bell rings. At least four students ask: "Wait — what IS the homework?" simultaneously.',
+    opts:[{key:'A',text:'Repeat it hurriedly as they pack up.'},{key:'B',text:'"It\'s on the board — take a photo before you leave."'}],
+    fbs:[{type:'warn',title:'Oral homework in a packing class',text:'Information delivered to a departing class is rarely retained. If it\'s not on the board, a significant percentage will not do it.'},
+         {type:'good',title:'Board = record',text:'A photographable board note is the most reliable homework delivery mechanism. Low effort, high return.'}]}},
+  {type:'good',title:'✓ Cut the grammar, keep the closure',text:'A discussion that ended properly is worth more than a grammar summary that was rushed. Writing the homework clearly on the board ensures the actionable information is captured. The grammar can open the next lesson — often better taught when students arrive with their discussion thinking still active.',sound:true,noise:14,tension:8,offtask:8,afterDesks:{engaged:17,distracted:3,disruptive:0,phone:1,passive:3},
+   causeD:'Cut grammar summary, closed discussion properly, homework on board',causeE:'Discussion closed satisfyingly. Homework visible and clear. Grammar moved to next lesson opener.',branch:null},
+  {type:'info',title:'⏩ Let discussion run',text:'Legitimate — a genuinely great discussion is rare and valuable. But "deal with the rest next lesson" requires you to actually deal with it next lesson. If this becomes a pattern, your lesson planning loses reliability and students start to notice that endings are unpredictable.',sound:false,noise:12,tension:8,offtask:10,afterDesks:{engaged:17,distracted:2,disruptive:0,phone:1,passive:4},
+   causeD:'Let the discussion run to its natural end',causeE:'Excellent discussion closure. But homework not explained. Grammar not covered.',
+   branch:{text:'Bell rings mid-discussion. Students close naturally but look uncertain about what comes next.',
+    opts:[{key:'A',text:'Quickly explain homework as they pack up.'},{key:'B',text:'"Great discussion — homework is on the board. We\'ll pick up the grammar first thing next lesson."'}],
+    fbs:[{type:'warn',title:'Verbal homework as they pack',text:'Most students won\'t retain verbally delivered homework when they\'re already mentally leaving. Board is always better.'},
+         {type:'good',title:'Bridge to next lesson',text:'Naming what comes next ("grammar first thing next lesson") creates continuity and manages student expectations. The lesson feels complete even without the grammar stage.'}]}}
+],theory:'Hunter (1982): lesson closure — the synthesis and wrap-up stage — is not optional. But what you choose to cut reveals your actual pedagogical priorities.',
+reflect:'When you run out of time, what do you cut first? What do you protect at all costs? What does that tell you about what you believe teaching is for?'},
+
+{level:'Primary',theme:'Confusing Instructions',timer:20,
+board:'Craft activity — make a story map',
+briefDesc:'You\'ve just explained the activity and nobody knows what to do. Your instructions didn\'t land.',
+briefTip:'If nobody understood, the problem is the instruction — not the students. The question is what to do next.',
+situation:'You have explained a story map activity to a class of 9-year-olds. You gave what felt like clear instructions. You say "OK, begin." Nobody moves. Several students look at each other. One raises their hand and asks "What are we supposed to do?" Two others echo "Yeah, I don\'t understand."',
+baseDesks:{engaged:2,distracted:8,disruptive:2,phone:0,passive:12},
+options:[
+  {key:'A',text:'Repeat the instructions again, more slowly and loudly.'},
+  {key:'B',text:'Put down the instruction sheet. Pick up a piece of paper and physically model the first step in front of the class.'},
+  {key:'C',text:'Put the instructions on the board as a numbered list and read through each step together.'}
+],
+feedback:[
+  {type:'bad',title:'❌ Repeat louder and slower',text:'Repeating the same instruction in the same modality — just louder and slower — rarely helps. If the instruction failed the first time, the channel of delivery is the problem, not the volume or the speed. Students who didn\'t understand the concept will not understand a louder version of the same concept.',sound:false,noise:30,tension:25,offtask:38,afterDesks:{engaged:3,distracted:9,disruptive:2,phone:0,passive:10},
+   causeD:'Repeated same instruction louder and slower',causeE:'A few more students understood. Most still confused. Three students began doing something random to look busy.',
+   branch:{text:'About a third of the class starts something. The other two thirds are guessing. Products are wildly inconsistent.',
+    opts:[{key:'A',text:'Let them continue — those who understood can finish first as a model.'},{key:'B',text:'Stop the class: "Hold on — let me show you exactly what the first step looks like."'}],
+    fbs:[{type:'warn',title:'Half the class guessing',text:'Work produced from misunderstood instructions is demoralising to correct and confusing to receive back. Stopping and modelling now costs 2 minutes but saves the entire activity.'},
+         {type:'good',title:'Live model rescues the activity',text:'Stopping to model mid-activity takes courage — it feels like admitting failure. But it\'s the single most effective correction available.'}]}},
+  {type:'good',title:'✓ Physical demonstration',text:'For primary learners especially, watching you physically do the first step is worth ten verbal repetitions. You pick up the paper, fold it, draw the first box, write a word — all while narrating simply. The class watches and within 30 seconds, students are reaching for their materials. Show beats tell at every level.',sound:true,noise:15,tension:8,offtask:10,afterDesks:{engaged:15,distracted:5,disruptive:1,phone:0,passive:3},
+   causeD:'Physically modelled the first step live in front of the class',causeE:'Students immediately began. Confusion resolved in under 60 seconds. Activity proceeding.',branch:null},
+  {type:'good',title:'✓ Numbered list on board',text:'Written instructions on the board give students something to return to independently. For primary learners who can read, numbered steps are particularly effective — students can self-monitor their progress and help each other without needing you.',sound:true,noise:16,tension:9,offtask:11,afterDesks:{engaged:14,distracted:5,disruptive:1,phone:0,passive:4},
+   causeD:'Wrote numbered steps on board and read through together',causeE:'Students had a visual reference. Most began confidently. Two still needed a quick individual check.',branch:null}
+],theory:'Marzano (2007): clarity of instruction is the single largest teacher-controllable variable in lesson success. Multi-modal delivery (visual + verbal + demonstration) reduces confusion by over 40%.',
+reflect:'When instructions fail, what is your first emotional response — frustration at students, self-criticism, or something else? How does that response shape your next move?'},
+
+{level:'Lower Secondary',theme:'Spontaneous Detour',timer:25,
+board:'Grammar lesson — present perfect',
+briefDesc:'A student has asked a genuinely interesting off-topic question. Half the class is suddenly very engaged. Your plan is irrelevant.',
+briefTip:'The most memorable learning moments in any language classroom are rarely in the lesson plan.',
+situation:'You are 20 minutes into a grammar lesson on the present perfect. A student asks: "Why do English people say \'I have been\' instead of \'I was\' — what\'s the actual difference?" Half the class visibly perks up. This is not in your plan. You have 25 minutes left. It\'s a genuinely great question.',
+baseDesks:{engaged:10,distracted:5,disruptive:1,phone:2,passive:6},
+options:[
+  {key:'A',text:'Acknowledge the question briefly: "Good question — we\'ll cover that in a later lesson" and return to your plan.'},
+  {key:'B',text:'Follow the question for 5–8 minutes, use examples, let students experiment with both forms, then return to the planned content.'},
+  {key:'C',text:'Abandon the plan completely and spend the rest of the lesson on this question — it\'s where the class energy is.'}
+],
+feedback:[
+  {type:'warn',title:'⚠ Deflected to "later"',text:'"We\'ll cover that later" is the response that kills curiosity. Students who ask genuine grammar questions in language class are rare and valuable. Deflecting communicates that spontaneous intellectual interest is not welcome — only planned content is.',sound:false,noise:22,tension:18,offtask:35,afterDesks:{engaged:7,distracted:7,disruptive:1,phone:2,passive:7},
+   causeD:'Deferred genuine student question to a future lesson',causeE:'The student who asked looked deflated. Two others who had leaned forward sat back. Energy dropped noticeably.',
+   branch:{text:'The lesson continues as planned but the energy never recovers. Students are compliant but no longer curious.',
+    opts:[{key:'A',text:'Continue — the plan is the plan.'},{key:'B',text:'Pause: "Actually — you know what, let\'s go back to that question. It\'s a good one."'}],
+    fbs:[{type:'warn',title:'Lesson compliant, curiosity gone',text:'A class that is compliant but not curious is a lesson that\'s technically complete but pedagogically hollow.'},
+         {type:'good',title:'Returning to the question',text:'Going back shows students that their intellectual contributions change the direction of the class. This is a powerful message about what learning is.'}]}},
+  {type:'good',title:'✓ 5-minute productive detour',text:'You take 5–8 minutes. You write both forms on the board. You give examples: "I was in Paris" vs "I have been to Paris." Students generate their own examples. Two students spontaneously identify the key distinction themselves. You acknowledge it, and then say: "That\'s exactly what we\'re going to formalise now." The planned content lands on a foundation of genuine understanding.',sound:true,noise:14,tension:6,offtask:8,afterDesks:{engaged:18,distracted:2,disruptive:0,phone:1,passive:3},
+   causeD:'Followed the student question for 5-8 minutes before returning to plan',causeE:'Class highly engaged. Students discovered the distinction themselves. Planned content landed with better understanding than if delivered cold.',branch:null},
+  {type:'info',title:'⏩ Abandon plan entirely',text:'The energy is real and the question is good. But abandoning a structured grammar plan entirely in favour of one emerging question risks leaving students without the consolidation and practice they need. Great insights require scaffolding to become durable knowledge.',sound:false,noise:18,tension:8,offtask:12,afterDesks:{engaged:15,distracted:3,disruptive:1,phone:2,passive:3},
+   causeD:'Abandoned planned content to follow student question entirely',causeE:'Excellent discussion. Students highly engaged. But no practice or consolidation of either the planned grammar or the new content.',
+   branch:{text:'End of lesson. Students have had a great discussion but no structured practice.',
+    opts:[{key:'A',text:'Set practice as homework.'},{key:'B',text:'"That was a great discussion — next lesson we\'ll do a quick activity to nail both forms down."'}],
+    fbs:[{type:'warn',title:'Discussion without consolidation',text:'Insights without practice rarely transfer to production. The discussion was valuable, but students need structured follow-through.'},
+         {type:'good',title:'Name the follow-up',text:'Telling students explicitly that they\'ll consolidate next lesson creates a bridge and validates the session as the beginning of something, not a complete detour.'}]}}
+],theory:'Harmer (2007): the tension between following the lesson plan and responding to emerging learning moments is one of the defining challenges of experienced teaching.',
+reflect:'How comfortable are you deviating from a lesson plan in the moment? What does your comfort level reveal about your relationship with planning vs. responsiveness?'}
+],
+
+feedback:[
+{level:'Lower Secondary',theme:'Peer Feedback',timer:25,
+board:'Writing workshop — peer review pairs',
+briefDesc:'You\'ve asked students to give each other written feedback on their drafts. It\'s not going well.',
+briefTip:'Peer feedback without structure is just peer opinion. The quality of feedback depends entirely on the tools you give students.',
+situation:'Students are supposed to be giving written feedback on each other\'s first drafts. You circulate and look at the feedback being written. Most of it is: "Good!", "I like it", or "Maybe add more". One student has written nothing. Two students are using it to correct every spelling error rather than respond to content.',
+baseDesks:{engaged:5,distracted:7,disruptive:1,phone:3,passive:8},
+options:[
+  {key:'A',text:'Stop the class: "The feedback isn\'t specific enough — tell your partner what was strong and what to develop."'},
+  {key:'B',text:'Put a feedback scaffold on the board: "I thought... was effective because..." and "You could develop... by..."'},
+  {key:'C',text:'Accept the vague feedback — the value is in the reading, not the comments.'}
+],
+feedback:[
+  {type:'warn',title:'⚠ Verbal instruction without scaffold',text:'Telling students to be "more specific" without showing them what specificity looks like is an instruction without a tool. Students will try — and most will produce marginally better vague feedback: "Good — because it was interesting."',sound:false,noise:28,tension:18,offtask:35,afterDesks:{engaged:7,distracted:7,disruptive:1,phone:3,passive:6},
+   causeD:'Told students to be more specific without providing a structure',causeE:'Feedback improved marginally. Students attempted specificity but lacked the framework to achieve it consistently.',
+   branch:{text:'Feedback improves slightly but most comments are still vague. Time is running out.',
+    opts:[{key:'A',text:'Accept what they have — time is short.'},{key:'B',text:'Write one sentence stem on the board: "I thought [specific moment] was effective because..." and give 3 more minutes.'}],
+    fbs:[{type:'warn',title:'Vague feedback accepted',text:'Students leave the workshop having given and received minimal actionable information. The revision stage will show it.'},
+         {type:'good',title:'One sentence stem, 3 minutes',text:'A single specific scaffold with a time extension is worth more than five minutes of verbal instruction about quality. Model the format, let them try.'}]}},
+  {type:'good',title:'✓ Scaffold on the board',text:'You write two sentence stems: "I thought [specific part] was effective because..." and "You could develop [specific part] by..." Within 2 minutes, the quality of feedback transforms. Students have a structure to pour their thinking into. The student who had written nothing has a place to start.',sound:true,noise:14,tension:8,offtask:12,afterDesks:{engaged:14,distracted:5,disruptive:1,phone:2,passive:2},
+   causeD:'Provided specific sentence stem scaffolds for feedback',causeE:'Feedback quality transformed. Students using structure to express genuine responses. Even reluctant writers started.',branch:null},
+  {type:'info',title:'⏩ Accept the vague feedback',text:'Partially correct — the act of reading a peer\'s work has value regardless of the feedback quality. But vague feedback deprives the writer of actionable information and deprives the reader of the metacognitive work of articulating observations.',sound:false,noise:12,tension:8,offtask:20,afterDesks:{engaged:8,distracted:6,disruptive:1,phone:3,passive:6},
+   causeD:'Accepted vague feedback without intervention',causeE:'Reading happened. Feedback was largely useless for revision purposes. Writers received "good!" and "add more".',
+   branch:{text:'Students return their drafts with feedback. Writers look at the comments briefly and set them aside.',
+    opts:[{key:'A',text:'Move to the revision stage — students should use the feedback they have.'},{key:'B',text:'"Before you revise — look at your partner\'s feedback and circle one thing you can act on. If nothing is actionable, ask them to be more specific."'}],
+    fbs:[{type:'warn',title:'Revision from vague feedback',text:'You cannot revise meaningfully from "good!" The revision stage will produce minimal change.'},
+         {type:'good',title:'Accountability for usefulness',text:'Asking writers to identify one actionable comment creates reciprocal accountability. If nothing is actionable, students learn to ask for better feedback — a skill that transfers far beyond this classroom.'}]}}
+],theory:'Black & Wiliam (1998): formative assessment research shows that specific, structured feedback consistently outperforms evaluative feedback for learning gains.',
+reflect:'When you set up peer feedback activities, do you provide a structure? If not, what assumption does that reveal about what students already know how to do?'},
+
+{level:'Upper Secondary',theme:'Over-Praising',timer:20,
+board:'Speaking activity — student presentations',
+briefDesc:'You\'ve been saying "Excellent!" and "Brilliant!" to everything. Students are starting to notice.',
+briefTip:'Undifferentiated praise creates two problems: it inflates weak work and deflates strong work. Students learn to read it quickly.',
+situation:'You are 20 minutes into a presentation session. You have said "Excellent!" after every single presentation — including one that was very weak and one that genuinely was excellent. You now notice that the student who gave the excellent presentation looks slightly deflated. Two others are whispering. The next student is about to present.',
+baseDesks:{engaged:9,distracted:5,disruptive:0,phone:3,passive:7},
+options:[
+  {key:'A',text:'Continue as you have been — consistent positive reinforcement maintains the supportive atmosphere.'},
+  {key:'B',text:'Stop using "excellent" entirely. Switch to specific, differentiated feedback: name what each presentation actually did well.'},
+  {key:'C',text:'Say nothing evaluative — just ask a genuine question after each presentation.'}
+],
+feedback:[
+  {type:'bad',title:'❌ Continued undifferentiated praise',text:'Students calibrate quickly. When everything gets "Excellent!" the word becomes meaningless within minutes. The strong student has already felt the deflation — their excellent work received the same response as the weak work. Continued undifferentiated praise is actively demotivating for high-performing students.',sound:false,noise:18,tension:20,offtask:28,afterDesks:{engaged:7,distracted:6,disruptive:0,phone:4,passive:7},
+   causeD:'Continued "Excellent!" after every presentation regardless of quality',causeE:'Strong student visibly unmotivated. Weaker students slightly confused about quality. "Excellent" has become background noise.',
+   branch:{text:'The excellent student presents again in the next activity and visibly puts in less effort.',
+    opts:[{key:'A',text:'Notice but don\'t address it — they may just be having an off day.'},{key:'B',text:'After the lesson, privately: "Your first presentation today was genuinely strong — I should have said specifically why."'}],
+    fbs:[{type:'warn',title:'Demotivation unaddressed',text:'High-performing students who receive undifferentiated praise eventually stop distinguishing their own effort level. The demotivation compounds if unaddressed.'},
+         {type:'good',title:'Retroactive specific praise',text:'Going back to be specific — even after the fact — signals that you were actually paying attention. This is recoverable.'}]}},
+  {type:'good',title:'✓ Specific differentiated feedback',text:'"Your opening line immediately set the context — that\'s a strong structure choice." "The examples you used were very specific — that made the argument convincing." Differentiated feedback is informative. Students now know what to repeat and what to develop. The excellent student hears something that matches the effort they invested.',sound:true,noise:12,tension:6,offtask:10,afterDesks:{engaged:15,distracted:4,disruptive:0,phone:2,passive:3},
+   causeD:'Switched to specific named feedback for each presentation',causeE:'Quality of subsequent presentations increased noticeably. Students started aiming for the specific qualities you had named.',branch:null},
+  {type:'good',title:'✓ Genuine question instead of evaluation',text:'"What made you choose that example?" "How did you decide to structure the opening?" Questions signal genuine interest and require the student to reflect on their own decision-making. This is more cognitively valuable than evaluation and sidesteps the praise inflation problem entirely.',sound:true,noise:14,tension:6,offtask:8,afterDesks:{engaged:16,distracted:3,disruptive:0,phone:2,passive:3},
+   causeD:'Replaced evaluative feedback with genuine reflective questions',causeE:'Students began thinking about their own process. Post-presentation discussion became substantive. Atmosphere of genuine inquiry developed.',branch:null}
+],theory:'Dweck (2006): mindset research — process praise ("you structured that well") is consistently more motivating than outcome praise ("excellent!") for developing a growth orientation.',
+reflect:'Listen to yourself in your next lesson. How many times do you say "Good!" or "Excellent!"? Is the frequency matched by the specificity?'}
+],
+
+emotional:[
+{level:'Primary',theme:'Crying Student',timer:15,
+board:'Free writing activity',
+briefDesc:'A student has started crying quietly at their desk. The class hasn\'t noticed yet.',
+briefTip:'Your first obligation is to the student. Your second is to manage the class while doing so.',
+situation:'During a quiet individual writing activity, you notice that a 9-year-old at the back of the room — Omar — has tears running down his face. He is trying to hide it. The rest of the class is working and hasn\'t noticed. You don\'t know why he\'s upset.',
+baseDesks:{engaged:14,distracted:3,disruptive:0,phone:0,passive:7},
+options:[
+  {key:'A',text:'Ask publicly across the room: "Omar, are you OK?"'},
+  {key:'B',text:'Walk over quietly, crouch beside him, and ask softly: "Are you OK? Do you need a minute outside?"'},
+  {key:'C',text:'Give him space — he\'s trying to hide it, so he probably wants privacy. Check in at the end of the lesson.'}
+],
+feedback:[
+  {type:'bad',title:'❌ Public call across the room',text:'Calling attention to a crying student across the room removes the privacy he was trying to protect. The class turns to look. Omar is now crying AND embarrassed. The class\'s focus on work is broken. His distress increases.',sound:false,noise:30,tension:45,offtask:25,afterDesks:{engaged:8,distracted:7,disruptive:0,phone:0,passive:9},
+   causeD:'Called attention to distressed student publicly',causeE:'Entire class looked. Omar became visibly more distressed. Class focus broken. Situation became a public moment Omar had been trying to avoid.',
+   branch:{text:'The class is now watching Omar. He looks mortified and is crying harder.',
+    opts:[{key:'A',text:'"Class, back to your work please." Then go to Omar quietly.'},{key:'B',text:'Ask Omar\'s desk-neighbour to get him a glass of water — redirects attention and gives him a moment.'}],
+    fbs:[{type:'good',title:'Redirect class, then approach',text:'Redirecting the class first removes the audience before you approach — giving Omar back some privacy.'},
+         {type:'good',title:'Water errand as cover',text:'A brief, purposeful errand shifts class attention and gives Omar 30 seconds of privacy. Simple and effective.'}]}},
+  {type:'good',title:'✓ Quiet, private approach',text:'You walk over calmly, crouch to his level, and say quietly: "Hey — are you OK? Do you need a minute outside?" He nods. You let him step outside with the teaching assistant or wait by the door. You return to the class calmly and continue. Omar\'s dignity is protected. The class barely noticed.',sound:true,noise:10,tension:8,offtask:8,afterDesks:{engaged:15,distracted:3,disruptive:0,phone:0,passive:6},
+   causeD:'Approached privately and quietly at desk level',causeE:'Omar\'s dignity preserved. Offered choice. Class minimally disrupted. Situation handled humanely.',branch:null},
+  {type:'info',title:'⏩ Give him space',text:'Respecting that he is trying to hide it shows awareness. But 20 minutes is a long time for a distressed 9-year-old to manage alone in a classroom. A brief private check-in takes 15 seconds and costs nothing.',sound:false,noise:8,tension:12,offtask:12,afterDesks:{engaged:13,distracted:3,disruptive:0,phone:0,passive:8},
+   causeD:'Left distressed student alone to manage independently',causeE:'Omar composed himself. But remained visibly subdued for the rest of the lesson. No adult contact.',
+   branch:{text:'End of lesson. Omar leaves quietly. You still don\'t know what happened.',
+    opts:[{key:'A',text:'Note it and monitor next lesson.'},{key:'B',text:'Catch him at the door: "Are you feeling better? I noticed earlier — I\'m here if you need anything."'}],
+    fbs:[{type:'info',title:'Observed, not followed up',text:'Reasonable for one incident. But a brief door check-in builds the relationship that makes future disclosures possible.'},
+         {type:'good',title:'Brief, private closing check-in',text:'15 seconds. No pressure. Just presence. This is what builds trust with young learners — and it costs almost nothing.'}]}}
+],theory:'Noddings (1992): ethics of care in education — attentiveness, responsiveness, and responsibility to the student as a whole person underpin effective teaching.',
+reflect:'How comfortable are you with student emotion in the classroom? Do you tend toward intervention or space-giving? What shapes that preference?'},
+
+{level:'Upper Secondary',theme:'Perceived Favouritism',timer:20,
+board:'Group work debrief — class discussion',
+briefDesc:'A student has just accused you, in front of the class, of favouring another student.',
+briefTip:'How you respond in the next 30 seconds will define the class\'s perception of your fairness for the rest of the term.',
+situation:'During a whole-class debrief, you give positive feedback to the same student for the third time this lesson. A student at the back says, loudly enough for everyone to hear: "You always pick her. It\'s not fair." The class goes quiet. Everyone is waiting for your response.',
+baseDesks:{engaged:12,distracted:4,disruptive:2,phone:1,passive:5},
+options:[
+  {key:'A',text:'Dismiss it firmly: "That\'s not true — I give feedback to everyone equally."'},
+  {key:'B',text:'Acknowledge it calmly: "That\'s a fair observation — let me make sure I\'m hearing from more of you." Then deliberately redirect.'},
+  {key:'C',text:'Address the student who said it directly: "That\'s not an appropriate comment — please don\'t speak like that in class."'}
+],
+feedback:[
+  {type:'warn',title:'⚠ Dismissal',text:'Saying "that\'s not true" to a perception the class has just collectively witnessed is unlikely to be believed. The student who spoke feels dismissed. The class has learned that raising unfairness concerns leads to denial. This perception will quietly persist and grow.',sound:false,noise:32,tension:48,offtask:25,afterDesks:{engaged:9,distracted:5,disruptive:2,phone:2,passive:6},
+   causeD:'Dismissed the fairness concern without acknowledging it',causeE:'Class unconvinced. Student who spoke looks frustrated. Underlying perception of favouritism unchanged.',
+   branch:{text:'The class continues but the atmosphere is visibly cooler. The student who spoke is disengaged.',
+    opts:[{key:'A',text:'Ignore it and finish the lesson.'},{key:'B',text:'Approach the student at the end: "I heard what you said — I\'m going to think about it. Thank you for saying it."'}],
+    fbs:[{type:'warn',title:'Unresolved public perception',text:'Ignoring it means the perception solidifies. It will affect the class dynamic for weeks.'},
+         {type:'good',title:'Private acknowledgement',text:'Going back privately — even just to say "I heard you and I\'m thinking about it" — is a significant act of intellectual honesty. It tells students their observations matter.'}]}},
+  {type:'good',title:'✓ Calm acknowledgement + redirect',text:'"That\'s a fair point to raise — I want to hear from more voices today." You then deliberately call on three students who haven\'t spoken. The class sees you act on the feedback in real time. The student who spoke feels heard. Your credibility increases, not decreases.',sound:true,noise:14,tension:10,offtask:10,afterDesks:{engaged:16,distracted:3,disruptive:0,phone:1,passive:4},
+   causeD:'Acknowledged the observation and visibly corrected behaviour',causeE:'Class saw you respond to feedback by changing. Perception of fairness restored. Student who spoke respected rather than punished.',branch:null},
+  {type:'warn',title:'⚠ Tone policing the student',text:'Focusing on how the student said it rather than what they said — "that\'s not an appropriate comment" — addresses the symptom while ignoring the substance. The class reads this as: the concern about fairness was shut down because of how it was raised, not addressed on its merits.',sound:false,noise:26,tension:42,offtask:22,afterDesks:{engaged:10,distracted:5,disruptive:2,phone:1,passive:6},
+   causeD:'Addressed tone of comment without acknowledging the content',causeE:'Student backed down publicly but looks resentful. Class read it as deflection. Underlying perception unchanged.',
+   branch:{text:'The class is quiet but the atmosphere is tense. The student stares at their desk.',
+    opts:[{key:'A',text:'Continue with the debrief.'},{key:'B',text:'"I want to be clear — the concern itself is worth hearing. Let me make sure I\'m calling on different people."'}],
+    fbs:[{type:'warn',title:'Atmosphere damaged',text:'The tone correction without acknowledgement reads as "you were wrong to say it." The underlying fairness concern is still there and now has resentment attached.'},
+         {type:'good',title:'Separate tone from content',text:'Distinguishing "how you raised it" from "what you raised" shows intellectual fairness. Acknowledge the concern even while addressing the tone.'}]}}
+],theory:'Cornelius-White (2007): student-centred teacher-student relationships — characterised by empathy, unconditional positive regard, and non-defensiveness — consistently produce higher engagement and better outcomes.',
+reflect:'Has a student ever said something in your lesson that turned out to be accurate criticism? How did you respond, and how did it feel?'}
+],
+
+tech:[
+{level:'Upper Secondary',theme:'Projector Failure',timer:15,
+board:'Video lesson — documentary clip',
+briefDesc:'The projector has just died mid-lesson. Your entire lesson plan is built around the video clip.',
+briefTip:'Technical failure reveals how far your lesson depends on technology — and whether that dependency has a cost.',
+situation:'Midway through a documentary clip that forms the basis of your whole lesson, the projector dies. Completely. It won\'t restart. The IT office isn\'t answering. You have 30 minutes left and nothing on paper.',
+baseDesks:{engaged:12,distracted:3,disruptive:1,phone:3,passive:5},
+options:[
+  {key:'A',text:'Spend 5–10 minutes trying to fix the projector or find IT support.'},
+  {key:'B',text:'Pivot immediately: "The projector\'s gone — here\'s what we\'re doing instead." Give a brief verbal summary of what the clip would have shown, then run a discussion activity.'},
+  {key:'C',text:'Let students work on their phones or laptops to watch the clip individually, then discuss.'}
+],
+feedback:[
+  {type:'warn',title:'⚠ Technical rescue attempt',text:'Spending 5–10 minutes trying to fix a projector while 24 students sit and watch is one of the most draining classroom experiences possible. The lesson atmosphere collapses. Students move to phones. By the time you give up, re-engagement takes another 5 minutes. You\'ve lost 15 minutes of a 30-minute remainder.',sound:false,noise:55,tension:40,offtask:65,afterDesks:{engaged:3,distracted:8,disruptive:2,phone:8,passive:3},
+   causeD:'Attempted to fix projector while class waited',causeE:'15 minutes lost. Students on phones. Atmosphere dissolved. Restarting activity from zero with 15 minutes remaining.',
+   branch:{text:'After 10 minutes, you give up. The class is fully disengaged.',
+    opts:[{key:'A',text:'Continue trying — it might restart.'},{key:'B',text:'"OK — projector\'s gone. Here\'s what we\'re doing." Take charge immediately.'}],
+    fbs:[{type:'bad',title:'More waiting',text:'Every additional minute of technical rescue compounds the disengagement. The class has already decided this lesson is lost.'},
+         {type:'good',title:'Pivot, even late',text:'A decisive pivot — even 10 minutes late — is better than no pivot. "Here\'s what we\'re doing" followed by a clear activity can recover 15 minutes of a lesson.'}]}},
+  {type:'good',title:'✓ Immediate pivot',text:'"Right — the projector\'s gone, so we\'re going to do this differently." You give a 90-second verbal summary of what the clip showed, write 2 key facts on the board, and pose the discussion question the clip was meant to prompt. Students are talking within 3 minutes. The lesson recovers completely.',sound:true,noise:16,tension:10,offtask:12,afterDesks:{engaged:16,distracted:3,disruptive:0,phone:2,passive:3},
+   causeD:'Pivoted immediately to verbal summary and discussion',causeE:'Minimal time lost. Class re-engaged within 3 minutes. Discussion was as productive as the clip would have been.',branch:null},
+  {type:'info',title:'⏩ Individual device viewing',text:'Viable if all students have devices and the clip is publicly accessible. But screen viewing on individual phones fragments the class and makes discussion coordination significantly harder. Also worth asking: if students can watch it on their phones, why were you planning to show it via projector?',sound:false,noise:22,tension:12,offtask:28,afterDesks:{engaged:10,distracted:5,disruptive:1,phone:8,passive:0},
+   causeD:'Redirected students to individual phone viewing',causeE:'Students watched at different speeds. Discussion difficult to coordinate. Some students didn\'t have the clip.',
+   branch:{text:'Students are at very different points in the clip. Some are finished, some are halfway, some can\'t access it.',
+    opts:[{key:'A',text:'Wait for everyone to finish before starting the discussion.'},{key:'B',text:'"Pause where you are — let me give a quick summary of the whole clip, then we discuss."'}],
+    fbs:[{type:'warn',title:'Fragmented viewing, fragmented discussion',text:'A class discussion where participants have different information is structurally difficult. The verbal summary should have come first.'},
+         {type:'good',title:'Summary equalises the room',text:'A verbal summary brings everyone to the same starting point. Then the discussion can proceed as planned.'}]}}
+],theory:'Technological failure is a predictable feature of technology-dependent teaching. Having a non-digital fallback for every technology-reliant lesson is considered basic professional preparation.',
+reflect:'How often do you have a plan B for lessons that rely on technology? What does your answer reveal about your assumptions about what can go wrong?'},
+
+{level:'Upper Secondary',theme:'Online Silence',timer:20,
+board:'Online lesson — breakout room discussion',
+briefDesc:'You\'ve put students in online breakout rooms. You can\'t hear them. When you rejoin, nobody has spoken.',
+briefTip:'Online silence is often structural, not motivational. The design of the task determines whether breakout rooms work.',
+situation:'You\'re running an online lesson. You sent 6 groups into breakout rooms for a 5-minute discussion task. You join one room — silent. Join another — silent. You bring everyone back to the main room and ask: "How did it go?" Nobody answers. Cameras are mostly off. Chat is empty.',
+baseDesks:{engaged:4,distracted:6,disruptive:0,phone:6,passive:8},
+options:[
+  {key:'A',text:'Ask directly: "Why didn\'t anyone talk in the breakout rooms?"'},
+  {key:'B',text:'Take responsibility: "I think the task wasn\'t clear enough for the breakout format — let me restructure it."'},
+  {key:'C',text:'Give up on the breakout rooms and run the discussion as a whole-class activity instead.'}
+],
+feedback:[
+  {type:'warn',title:'⚠ Blamed students for structural failure',text:'Asking "why didn\'t you talk?" puts the responsibility for a structural failure on students. Breakout room silence is almost always about task design, not student motivation. Students who were confused by the task will now feel accused of laziness.',sound:false,noise:18,tension:40,offtask:38,afterDesks:{engaged:3,distracted:7,disruptive:0,phone:7,passive:7},
+   causeD:'Asked students why they didn\'t talk in breakout rooms',causeE:'Students looked uncomfortable. One said "we didn\'t know what to discuss." The task design was the problem, not the students.',
+   branch:{text:'One student says: "We weren\'t sure what to talk about." Others nod.',
+    opts:[{key:'A',text:'"That\'s fair — I should have been clearer. Let\'s try again with a specific question."'},{key:'B',text:'"OK — let\'s do it as a whole class instead then."'}],
+    fbs:[{type:'good',title:'Acknowledged the design failure',text:'Taking responsibility and offering a specific question transforms the dynamic. Students feel heard rather than blamed. The retry will work.'},
+         {type:'good',title:'Pivot to whole class',text:'Sometimes the right response to a failed structure is to abandon the structure. Whole-class discussion with a specific question recovers the lesson effectively.'}]}},
+  {type:'good',title:'✓ Own the design failure',text:'"I think the task wasn\'t specific enough for the breakout format — let me give you a clearer question." You write one specific question in the chat and send them back with: "Your group must produce one sentence that answers this question." The second attempt works. Students return with answers.',sound:true,noise:12,tension:8,offtask:12,afterDesks:{engaged:13,distracted:4,disruptive:0,phone:5,passive:2},
+   causeD:'Took responsibility for task design and restructured with specific question',causeE:'Second breakout attempt successful. Students returned with responses. Discussion productive.',branch:null},
+  {type:'good',title:'✓ Pivot to whole class',text:'Abandoning a structure that isn\'t working is a sign of responsiveness, not failure. You run the same discussion as a whole-class activity with a specific question. Three students with cameras on respond. Others contribute in chat.',sound:true,noise:10,tension:6,offtask:10,afterDesks:{engaged:12,distracted:4,disruptive:0,phone:6,passive:2},
+   causeD:'Abandoned breakout rooms and ran whole-class discussion instead',causeE:'Discussion proceeded effectively. Chat active. Less isolation than breakout rooms for this particular group.',branch:null}
+],theory:'Garrison & Vaughan (2008): online community of inquiry — cognitive, social, and teaching presence are all required. Breakout rooms without clear cognitive tasks collapse social presence and produce silence.',
+reflect:'When an online activity fails, what is your first instinct — fix the structure, or attribute it to student engagement? What does that reveal about your assumptions about online learning?'}
+]};
+
+// Merge extra scenarios into PACKS
+EXTRA.cm.forEach(s=>PACKS.find(p=>p.id==='cm').scenarios.push(s));
+EXTRA.efl.forEach(s=>PACKS.find(p=>p.id==='efl').scenarios.push(s));
+EXTRA.lesson.forEach(s=>PACKS.find(p=>p.id==='lesson').scenarios.push(s));
+EXTRA.feedback.forEach(s=>PACKS.find(p=>p.id==='feedback').scenarios.push(s));
+EXTRA.emotional.forEach(s=>PACKS.find(p=>p.id==='emotional').scenarios.push(s));
+EXTRA.tech.forEach(s=>PACKS.find(p=>p.id==='tech').scenarios.push(s));
+
+// Update pack descriptions
+PACKS.find(p=>p.id==='cm').desc='Low participation, dominant student, first 5 min, mixed ability, lesson endings';
+PACKS.find(p=>p.id==='efl').desc='L1 overuse, speaking anxiety, vocabulary gap, pronunciation, silent students';
+PACKS.find(p=>p.id==='lesson').desc='Activity failure, time management, instructions, spontaneous detours';
+PACKS.find(p=>p.id==='feedback').desc='Error correction, recasting, peer feedback, praise calibration';
+PACKS.find(p=>p.id==='emotional').desc='Student challenges, crying student, perceived favouritism, conflict';
+PACKS.find(p=>p.id==='tech').desc='Phone use, projector failure, online silence, off-task behaviour';
+
+// ═══ STATE ═══════════════════════════════════════════════════════════════════
+let pack=null,scIdx=0,timerInt=null,timerLeft=0;
+let decisions=0,soundChoices=0,freezes=0,reflections=[];
+let noiseL=8,tensionL=8,offtaskL=8;
+
+// ═══ LOBBY ═══════════════════════════════════════════════════════════════════
+function goLobby(){
+  clearInterval(timerInt); stopAmb();
+  document.querySelector('.mute-btn').classList.remove('show');
+  showScreen('s-lobby');
+  const g=document.getElementById('packGrid'); g.innerHTML='';
+  PACKS.forEach(p=>{
+    const c=document.createElement('div'); c.className='pack-card'; c.onclick=()=>showBriefing(p.id,0);
+    c.innerHTML=`<div class="pack-icon">${p.icon}</div><div class="pack-name">${p.name}</div>
+    <div class="pack-cnt">${p.scenarios.length} scenario${p.scenarios.length>1?'s':''}</div>
+    <div class="pack-desc">${p.desc}</div>`;
+    g.appendChild(c);
+  });
+}
+
+// ═══ BRIEFING ════════════════════════════════════════════════════════════════
+function showBriefing(packId, idx){
+  const p=PACKS.find(x=>x.id===packId);
+  const sc=p.scenarios[idx];
+  pack=p; scIdx=idx;
+  document.getElementById('br-pack').textContent=p.name;
+  document.getElementById('br-theme').textContent=sc.theme;
+  document.getElementById('br-level').textContent=sc.level;
+  document.getElementById('br-desc').textContent=sc.briefDesc;
+  document.getElementById('br-tip').textContent='💡 '+sc.briefTip;
+  showScreen('s-briefing');
+}
+
+function enterClassroom(){
+  // Init audio on user gesture
+  getAC();
+  decisions=0; soundChoices=0; freezes=0; reflections=[];
+  noiseL=8; tensionL=8; offtaskL=8;
+  document.querySelector('.mute-btn').classList.add('show');
+  showScreen('s-game');
+  renderScenario();
+  startAmb(.03);
+}
+
+// ═══ RENDER SCENARIO ═════════════════════════════════════════════════════════
+function renderScenario(){
+  const sc=pack.scenarios[scIdx];
+  document.getElementById('tb-pack').textContent=pack.name;
+  document.getElementById('tb-level').textContent=sc.level;
+  document.getElementById('tb-theme').textContent=sc.theme;
+  document.getElementById('boardTxt').textContent=sc.board;
+  // progress dots
+  const pd=document.getElementById('progDots'); pd.innerHTML='';
+  pack.scenarios.forEach((_,i)=>{
+    const d=document.createElement('div');
+    d.className='pdot'+(i<scIdx?' done':i===scIdx?' cur':'');
+    pd.appendChild(d);
+  });
+  renderClassroom('deskRows',sc.baseDesks,true);
+  setBars(noiseL,tensionL,offtaskL);
+  setAlert('','');
+  document.getElementById('scTxt').textContent=sc.situation;
+  const og=document.getElementById('optsGrid'); og.innerHTML='';
+  sc.options.forEach(o=>{
+    const b=document.createElement('button'); b.className='opt';
+    b.innerHTML=`<div class="okey">${o.key}</div><span>${o.text}</span>`;
+    b.onclick=()=>choose(o.key);
+    og.appendChild(b);
+  });
+  document.getElementById('fb-panel').style.display='none';
+  document.getElementById('scArea').style.display='block';
+  startTimer(sc.timer);
+}
+
+// ═══ TIMER ═══════════════════════════════════════════════════════════════════
+function startTimer(seconds){
+  clearInterval(timerInt); timerLeft=seconds;
+  const arc=document.getElementById('tArc'), num=document.getElementById('tNum');
+  const C=113.1; num.className='tnum'; arc.style.stroke='#02BBBB';
+  timerInt=setInterval(()=>{
+    timerLeft--;
+    arc.style.strokeDashoffset=C*(1-timerLeft/seconds);
+    num.textContent=timerLeft;
+    document.getElementById('tInline').textContent=timerLeft>0?timerLeft+'s':'';
+    if(timerLeft<=seconds*.6&&timerLeft>seconds*.3) playTick(false);
+    if(timerLeft<=seconds*.3) playTick(true);
+    if(timerLeft<=10){num.className='tnum urgent';arc.style.stroke='#FF6B6B';}
+    if(timerLeft===Math.floor(seconds*.45)){
+      const n=Math.min(100,noiseL+22),t=Math.min(100,tensionL+18),o=Math.min(100,offtaskL+22);
+      setBars(n,t,o); playAlarm();
+      setAlert('noise','🔊 Noise level rising — students are getting restless...');
+      flashScreen('#FEF3C7');
+      const sc=pack.scenarios[scIdx];
+      const w={...sc.baseDesks, engaged:Math.max(0,(sc.baseDesks.engaged||0)-3),
+        distracted:(sc.baseDesks.distracted||0)+2, disruptive:(sc.baseDesks.disruptive||0)+1};
+      renderClassroom('deskRows',w);
+    }
+    if(timerLeft===8){
+      const n=Math.min(100,noiseL+22),t=Math.min(100,tensionL+22),o=Math.min(100,offtaskL+22);
+      setBars(n,t,o); playAlarm(); setTimeout(()=>playAlarm(),400);
+      setAlert('crisis','🚨 Situation escalating — class is rapidly losing focus!');
+      flashScreen('#FFE4E4');
+    }
+    if(timerLeft<=0){clearInterval(timerInt);onFreeze();}
+  },1000);
+}
+
+// ═══ FREEZE ══════════════════════════════════════════════════════════════════
+function onFreeze(){
+  freezes++; decisions++;
+  setBars(Math.min(100,noiseL+35),Math.min(100,tensionL+40),Math.min(100,offtaskL+40));
+  playFreeze(); flashScreen('#FFE4E4');
+  setAlert('freeze','🧊 You froze. The class deteriorated while you hesitated.');
+  disableOpts();
+  const sc=pack.scenarios[scIdx];
+  const w={engaged:Math.max(0,(sc.baseDesks.engaged||0)-7),
+    distracted:(sc.baseDesks.distracted||0)+4, disruptive:(sc.baseDesks.disruptive||0)+5,
+    phone:(sc.baseDesks.phone||0)+2, passive:(sc.baseDesks.passive||0)};
+  renderClassroom('deskRows',w);
+  setTimeout(()=>showFeedback('bad','🧊 You froze',
+    'When a classroom situation escalates and a teacher takes no action, students interpret the silence as permission. The situation escalates further — and every second of inaction compounds the problem. Decisiveness, even an imperfect decision, is always better than paralysis.',
+    'Took no action during a developing classroom situation',
+    'Class interpreted the silence as permission. Behaviour escalated significantly across multiple students.',
+    null,sc),900);
+}
+
+function disableOpts(){document.querySelectorAll('.opt').forEach(b=>b.disabled=true);}
+
+// ═══ CHOOSE ══════════════════════════════════════════════════════════════════
+function choose(key){
+  clearInterval(timerInt); decisions++; disableOpts(); setAlert('','');
+  const sc=pack.scenarios[scIdx];
+  const idx=key.charCodeAt(0)-65;
+  const fb=sc.feedback[idx];
+  if(fb.sound){soundChoices++;playChime();setAlert('good','✓ '+fb.title);flashScreen('#D4F5E8');}
+  else{playThud();if(fb.type==='bad'){setAlert('crisis','🚨 '+fb.title);flashScreen('#FFE4E4');}else{setAlert('noise','⚠ '+fb.title);flashScreen('#FEF3C7');}}
+  setBars(fb.noise,fb.tension,fb.offtask);
+  renderClassroom('deskRows',fb.afterDesks);
+  showFeedback(fb.type,fb.title,fb.text,fb.causeD,fb.causeE,fb.branch,sc);
+}
+
+// ═══ SHOW FEEDBACK ═══════════════════════════════════════════════════════════
+function showFeedback(type,title,text,causeD,causeE,branch,sc){
+  document.getElementById('scArea').style.display='none';
+  const fp=document.getElementById('fb-panel'); fp.style.display='block';
+  const fb=document.getElementById('fbBox');
+  fb.className='fb-box '+type;
+  document.getElementById('fbTitle').textContent=title;
+  document.getElementById('fbTxt').textContent=text;
+  const ce=document.getElementById('ceBox');
+  if(causeD){
+    ce.style.display='block';
+    document.getElementById('ceDec').textContent='Your decision: '+causeD;
+    document.getElementById('ceEff').textContent='What happened: '+causeE;
+  } else ce.style.display='none';
+  const ba=document.getElementById('branchArea'); ba.innerHTML='';
+  const tc=document.getElementById('twoCol'),ri=document.getElementById('refInput'),nb=document.getElementById('nextBtn');
+  tc.style.display='none'; ri.style.display='none'; nb.style.display='none';
+  const showReflect=()=>{
+    if(sc){document.getElementById('theoryTxt').textContent=sc.theory;document.getElementById('reflectQ').textContent=sc.reflect;}
+    tc.style.display='grid'; ri.style.display='block'; ri.value=''; nb.style.display='inline-flex';
+  };
+  if(branch){
+    const bd=document.createElement('div');
+    bd.innerHTML=`<div class="branch-box"><div class="branch-lbl">⏩ A moment later in the classroom</div>${branch.text}</div>
+    <div class="opts-lbl" style="margin-bottom:.5rem">Now what?</div><div class="opts-grid" id="bOpts"></div>`;
+    ba.appendChild(bd);
+    branch.opts.forEach(o=>{
+      const b2=document.createElement('button'); b2.className='opt';
+      b2.innerHTML=`<div class="okey">${o.key}</div><span>${o.text}</span>`;
+      b2.onclick=()=>{
+        decisions++;
+        const bi=o.key.charCodeAt(0)-65, bfb=branch.fbs[bi];
+        fb.className='fb-box '+bfb.type;
+        document.getElementById('fbTitle').textContent=bfb.title;
+        document.getElementById('fbTxt').textContent=bfb.text;
+        ce.style.display='none'; ba.innerHTML=''; showReflect();
+      };
+      document.getElementById('bOpts').appendChild(b2);
+    });
+  } else showReflect();
+  fp.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ═══ NEXT ════════════════════════════════════════════════════════════════════
+function nextSc(){
+  const v=document.getElementById('refInput').value.trim();
+  if(v) reflections.push(v);
+  scIdx++;
+  if(scIdx>=pack.scenarios.length){showResults();return;}
+  // Show briefing for next scenario
+  document.getElementById('fb-panel').style.display='none';
+  showBriefing(pack.id, scIdx);
+}
+
+// ═══ RESULTS ═════════════════════════════════════════════════════════════════
+function showResults(){
+  stopAmb(); showScreen('s-results');
+  const pct=pack.scenarios.length>0?Math.round((soundChoices/pack.scenarios.length)*100):0;
+  document.getElementById('resH').textContent=pct>=60?'Strong session.':'Room for reflection.';
+  document.getElementById('resP').textContent=pct>=60
+    ?'Your first choices were mostly context-sensitive and learner-centred. Review your reflections — what shaped those instincts?'
+    :'Several reactive or avoidant choices appeared. This is common among pre-service teachers — awareness of these patterns is exactly where development begins.';
+  document.getElementById('rDec').textContent=decisions;
+  document.getElementById('rSnd').textContent=soundChoices+'/'+pack.scenarios.length;
+  document.getElementById('rFrz').textContent=freezes;
+  const rl=document.getElementById('refList');
+  rl.innerHTML=reflections.length>0
+    ?reflections.map(r=>`<div class="ref-item">${r}</div>`).join('')
+    :'<div style="font-size:.8rem;color:#8BA0B8;padding:.35rem 0">No written reflections this session.</div>';
+}
+
+// ═══ UTILS ═══════════════════════════════════════════════════════════════════
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function setBars(n,t,o){
+  noiseL=n; tensionL=t; offtaskL=o;
+  const set=(fi,vi,val,lbls,cols)=>{
+    const i=val<30?0:val<55?1:val<80?2:3;
+    document.getElementById(fi).style.width=val+'%';
+    document.getElementById(fi).style.background=cols[i];
+    document.getElementById(vi).textContent=lbls[i];
+    document.getElementById(vi).style.color=cols[i];
+  };
+  const c=['#6EE7A0','#FBD06A','#FF8080','#FF4444'];
+  set('nFill','nVal',n,['Low','Moderate','High','Very High'],c);
+  set('tFill','tVal',t,['Calm','Rising','High','Crisis'],c);
+  set('oFill','oVal',o,['Low','Noticeable','High','Severe'],c);
+}
+function setAlert(type,msg){
+  const b=document.getElementById('alertBar');
+  b.className='alert-bar'+(type?' '+type:'')+(msg?' on':'');
+  b.textContent=msg;
+}
+function flashScreen(hex){
+  const f=document.getElementById('flash');
+  f.style.background=hex; f.classList.remove('pop');
+  void f.offsetWidth; f.classList.add('pop');
+  setTimeout(()=>f.classList.remove('pop'),700);
+}
+
+goLobby();
+</script>
+</body>
+</html>
